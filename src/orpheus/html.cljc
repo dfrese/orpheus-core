@@ -4,13 +4,13 @@
 
 #?(:cljs
    (def target-value ^{:doc "A handler, that returns the target.value"}
-     (core/handler (fn [e]
-                     (.-value (.-target e))))))
+     (core/transformer (fn [e]
+                         (.-value (.-target e))))))
 
 #?(:cljs
    (def target-checked ^{:doc "A handler, that returns the `target.checked`."}
-     (core/handler (fn [e]
-                     (.-checked (.-target e))))))
+     (core/transformer (fn [e]
+                         (.-checked (.-target e))))))
 
 ;; TODO: keys, mouse positions/clicks?
 

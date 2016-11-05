@@ -25,6 +25,16 @@
 
 (defrecord ElementType [ns name options])
 
-(defrecord CustomType [ctor])
+;; Note custom elements can also be created via ElementType, but this
+;; is for creation via a constructor function which is more convenient
+;; in some situations.
+(defrecord CustomElementType [ctor args])
 
-;; defrecord ReactType [...] (which is not IDOMNode)...
+;; A foreign type could be something like a react component, which can
+;; be integrated into the dom, but has special rules for construction
+;; and patching.
+(defprotocol ForeignType
+  (-create-node [this props options] "Create a dom node for this type and props.")
+  (-patch-node! [this old-props new-props options] "Update the dom node for new props of the same type."))
+
+;; Note a 'recursive' foreign type might be useful too, which takes a 'recurse' fn to render embedded velements.
