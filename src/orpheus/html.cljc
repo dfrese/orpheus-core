@@ -1,6 +1,7 @@
 (ns orpheus.html
   (:require [orpheus.core :as core]
-            [orpheus.dom :as dom]))
+            [orpheus.dom :as dom])
+  (:refer-clojure :exclude [time]))
 
 #?(:cljs
    (def target-value ^{:doc "A handler, that returns the target.value"}
@@ -17,7 +18,7 @@
 (def html-ns "http://www.w3.org/1999/xhtml")
 
 (defn- v [name]
-  (let [type (dom/ElementType. html-ns name nil)]
+  (let [type (dom/element-type html-ns name nil)]
     (partial dom/h type)))
 
 (def h1 (v "h1"))

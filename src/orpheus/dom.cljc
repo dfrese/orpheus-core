@@ -25,10 +25,16 @@
 
 (defrecord ElementType [ns name options])
 
+(defn element-type [ns name options]
+  (ElementType. ns name options))
+
 ;; Note custom elements can also be created via ElementType, but this
 ;; is for creation via a constructor function which is more convenient
 ;; in some situations.
 (defrecord CustomElementType [ctor args])
+
+(defn custom-element-type [ctor & args]
+  (CustomElementType. ctor args))
 
 ;; A foreign type could be something like a react component, which can
 ;; be integrated into the dom, but has special rules for construction

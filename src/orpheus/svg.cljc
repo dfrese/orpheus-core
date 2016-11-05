@@ -4,7 +4,7 @@
 (def svg-ns "http://www.w3.org/2000/svg")
 
 (defn- v [name]
-  (let [type (dom/ElementType. svg-ns name nil)]
+  (let [type (dom/element-type svg-ns name nil)]
     (partial dom/h type)))
 
 (def svg (v "svg"))
