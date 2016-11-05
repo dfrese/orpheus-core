@@ -63,10 +63,11 @@
                     (apply f e args))))
               fs)))
 
-(defprotocol IEventHandler
-  (-to-js-event-handler [this options]))
+(defprotocol ITransformable
+  (-update-fs [this f])
+  (-get-fs [this]))
 
-(defrecord Transformer [fs]
+(defrecord EventHandler [fs]
   ;; directly execute as a function; useful for testing.
   #?@(:clj [clojure.lang.IFn
             (invoke [this e]
@@ -74,14 +75,26 @@
   #?@(:cljs [IFn
              (-invoke [this e]
                       ((comp-fs fs) e))])
-  
-  IEventHandler
-  (-to-js-event-handler [this options]
-    (comp (if-let [dispatch! (:dispatch! options)]
-            (fn [e] (when (some? e)
-                      (dispatch! e)))
-            (constantly nil))
-          (comp-fs fs))))
+  ITransformable
+  (-get-fs [this] fs)
+  (-update-fs [this f]
+    (update this :fs f)))
+
+(defn event-handler
+  ([] (EventHandler. []))
+  ([f & args]
+   (EventHandler. [[f args]])))
+
+(defn event-handler? [v]
+  (instance? EventHandler v))
+
+(defn create-js-event-handler [h dispatch!]
+  (assert (event-handler? h))
+  (comp (if dispatch!
+          (fn [e] (when (some? e)
+                    (dispatch! e)))
+          (constantly nil))
+        (comp-fs (:fs h))))
 
 (comment TODO put somewhere
          "Turns `f` into an event handler. The DOM event is passed to `f`,
@@ -92,32 +105,67 @@
   way. See [[comp-handlers]]."
          )
 
+(defrecord Transformer [fs] ;; an arrow, or sort of..
+  #?@(:clj [clojure.lang.IFn
+            (invoke [this e]
+                    ((comp-fs fs) e))])
+  #?@(:cljs [IFn
+             (-invoke [this e]
+                      ((comp-fs fs) e))])
+  ITransformable
+  (-get-fs [this] fs)
+  (-update-fs [this f]
+    (update this :fs f)))
+
 (defn transformer
   [f & args]
   (Transformer. [[f args]]))
 
-(defn comp-transformers
-  "Chain several handlers into one. This is referentially transparent,
-  meaning that composing the same handlers again is `=`."
+(defn trans->
+  "Compose several transformers into one, where the first one is
+  applied first. Also, the result has the same type as the first. Note
+  that this is referentially transparent, meaning that composing the
+  same transformers again is `=`."
   [h0 & hs]
-  (Transformer. (apply mapcat #(.-fs %) h0 hs)))
+  (assert (every? #(satisfies? ITransformable %) (cons h0 hs)))
+  (-update-fs h0
+              (fn [fs0]
+                ;; TODO could allow arbitrary IFns in hs for simple cases?
+                (concat (mapcat -get-fs (reverse hs)) fs0))))
 
-(defn trans-> [& hs]
-  (comp-transformers (reverse hs)))
+(defn comp-transformers
+  "Compose several transformers into one, where the last one is
+  applied first. Note that this is referentially transparent, meaning
+  that composing the same transformers again is `=`."
+  [h0 & hs]
+  (apply trans-> (reverse (cons h0 hs))))
 
 ;; Some standard handlers
 
-(def ^{:doc "A transformer returning a constant value."}
+(def ^{:doc "Returns transformer, that returns the constant value `v`."
+       :arglists '([v])}
   const
   (let [f (fn [_ v] v)]
-    (fn [msg]
-      (transformer f msg))))
+    (fn [v]
+      (transformer f v))))
 
 (def ident (transformer identity))
 
-(def ^{:doc "A transformer that wraps any value in a tuple `[id v]`."}
-  tag
-  (let [f (fn [v id]
-            [id v])]
-    (fn [id]
-      (transformer f id))))
+(defrecord Tagged [value tag])
+
+(defn tagged [tag v]
+  (Tagged. v tag))
+
+(defn tagged? [v]
+  (instance? Tagged v))
+
+(defn tag
+  "Returns a transformer that wraps any value as a [[tagged]] value with the given arbitrary value `t` as the tag."
+  [t]
+  (transformer ->Tagged t))
+
+(defn untag "Returns a tuple `[tag value]` if `v` is a [[tagged]] value, or `[v nil]` otherwise."
+  [v]
+  (if (tagged? v)
+    [(:tag v) (:value v)]
+    [v nil]))

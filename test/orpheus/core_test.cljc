@@ -8,10 +8,13 @@
 
 (deftest transformers-test
   (testing "they chain up"
-    (let [f (core/trans-> (core/tag :b)
-                          (core/tag :a))
+    (let [f (core/trans-> (core/tag :a)
+                          (core/trans-> (core/tag :b)
+                                        (core/tag :c))
+                          (core/tag :d))
           res (atom nil)]
-      (is (= [:a [:b 42]] (f 42)))))
+      (is (= (core/tagged :d (core/tagged :c (core/tagged :b (core/tagged :a 42))))
+             (f 42)))))
   (testing "they are referentially transparent"
     (let [f1 (core/tag :a)
           f2 (core/tag :b)
