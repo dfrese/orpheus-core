@@ -1,15 +1,60 @@
 (ns orpheus.dom
-  (:require [orpheus.core :as core]))
+  (:require [orpheus.core :as core]
+            [orpheus.transformer :as t]))
+
+(defrecord EventHandler [t]
+  #?@(:clj [clojure.lang.IFn
+            (invoke [this e]
+                    (t/transform e t))])
+  #?@(:cljs [IFn
+             (-invoke [this e]
+                      (t/transform e t))])
+  t/ITransformable
+  (-get-fs [this] (t/-get-fs t))
+  (-update-fs [this f]
+    (EventHandler. (t/-update-fs t f))))
+
+(defn event-handler
+  ([] (EventHandler. t/ident))
+  ([v]
+   (if (instance? EventHandler v)
+     v
+     (EventHandler. (t/transformer v))))
+  ([f a0 & args]
+   (EventHandler. (apply t/transformer a0 args))))
+
+(defn event-handler? [v]
+  (instance? EventHandler v))
+
+(defn handler-> [h0 & hs]
+  (apply t/trans-> (event-handler h0) hs))
+
+(defn create-js-event-handler [h dispatch!]
+  (assert (event-handler? h))
+  (comp (if dispatch!
+          (fn [e] (when (some? e)
+                    (dispatch! e)))
+          (constantly nil))
+        (t/transformed h)))
+
+(comment TODO put somewhere
+         "Turns `f` into an event handler. The DOM event is passed to `f`,
+  and if it returns non-nil, that value will be passed to the
+  `:dispatch!` function from the options passed to [[patch-children!]]
+  if defined. Another difference between raw functions and handlers
+  is, that handlers can be chained in a referentially transparent
+  way. See [[comp-handlers]]."
+         )
 
 (def prevent-default
-  (core/transformer (fn [e]
-                      (.preventDefault e)
-                      e)))
+  (event-handler (fn [e]
+                   (.preventDefault e)
+                   e)))
 
 (def stop-propagation
-  (core/transformer (fn [e]
-                      (.stopPropagation e)
-                      e)))
+  (event-handler (fn [e]
+                   (.stopPropagation e)
+                   e)))
 
 (defn- _h
   [type props children]

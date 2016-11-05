@@ -1,17 +1,20 @@
 (ns orpheus.html
-  (:require [orpheus.core :as core]
+  (:require [orpheus.transformer :as t]
             [orpheus.dom :as dom])
   (:refer-clojure :exclude [time]))
 
 #?(:cljs
    (def target-value ^{:doc "A handler, that returns the target.value"}
-     (core/transformer (fn [e]
-                         (.-value (.-target e))))))
+     (dom/event-handler (fn [e]
+                          (.-value (.-target e))))))
 
 #?(:cljs
    (def target-checked ^{:doc "A handler, that returns the `target.checked`."}
-     (core/transformer (fn [e]
-                         (.-checked (.-target e))))))
+     (dom/event-handler (fn [e]
+                          (.-checked (.-target e))))))
+
+(defn const-handler [v]
+  (dom/event-handler (t/const v)))
 
 ;; TODO: keys, mouse positions/clicks?
 
