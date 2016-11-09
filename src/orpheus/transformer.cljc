@@ -1,4 +1,5 @@
 (ns orpheus.transformer)
+;; TOOD -> move to some general (arrow) util
 
 (defn- comp-fs [fs]
   ;; Note: last one in list will be applied first
@@ -20,7 +21,7 @@
   (comp-fs (-get-fs t)))
 
 (defn transform [v t]
-  ((transformed t) v))
+  ((transformed (transformer t)) v))
 
 (defrecord Transformer [fs] ;; an arrow, or sort of..
   #?@(:clj [clojure.lang.IFn

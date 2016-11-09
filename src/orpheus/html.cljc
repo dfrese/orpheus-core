@@ -13,9 +13,6 @@
      (dom/event-handler (fn [e]
                           (.-checked (.-target e))))))
 
-(defn const-handler [v]
-  (dom/event-handler (t/const v)))
-
 ;; TODO: keys, mouse positions/clicks?
 
 (def html-ns "http://www.w3.org/1999/xhtml")

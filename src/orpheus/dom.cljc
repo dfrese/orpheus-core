@@ -26,6 +26,9 @@
 (defn event-handler? [v]
   (instance? EventHandler v))
 
+(defn const-handler [v]
+  (event-handler (t/const v)))
+
 (defn handler-> [h0 & hs]
   (apply t/trans-> (event-handler h0) hs))
 
@@ -86,6 +89,7 @@
 ;; and patching.
 (defprotocol ForeignType
   (-create-node [this props options] "Create a dom node for this type and props.")
-  (-patch-node! [this old-props new-props options] "Update the dom node for new props of the same type."))
+  (-patch-node! [this old-props new-props options] "Update the dom node for new props of the same type.")
+  (-destroy-node! [this props options] "Clean up the dom node."))
 
 ;; Note a 'recursive' foreign type might be useful too, which takes a 'recurse' fn to render embedded velements.
