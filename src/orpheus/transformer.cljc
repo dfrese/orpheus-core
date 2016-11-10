@@ -20,9 +20,6 @@
 (defn transformed [t]
   (comp-fs (-get-fs t)))
 
-(defn transform [v t]
-  ((transformed (transformer t)) v))
-
 (defrecord Transformer [fs] ;; an arrow, or sort of..
   #?@(:clj [clojure.lang.IFn
             (invoke [this e]
@@ -45,6 +42,9 @@
        (Transformer. [[v nil]]))))
   ([f a0 & args]
    (Transformer. [[f (cons a0 args)]])))
+
+(defn transform [v t]
+  ((transformed (transformer t)) v))
 
 (defn- get-fs [v]
   (if (satisfies? ITransformable v)
