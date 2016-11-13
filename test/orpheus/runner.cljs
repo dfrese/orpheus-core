@@ -1,7 +1,9 @@
 (ns orpheus.runner
   (:require [doo.runner :refer-macros [doo-tests]]
-            ))
+            orpheus.core-test
+            orpheus.html-test))
 
-(doo-tests 
+(doo-tests 'orpheus.core-test
+           'orpheus.html-test
            )
 

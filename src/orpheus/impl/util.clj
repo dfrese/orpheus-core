@@ -6,4 +6,4 @@
            :arglists ''([props & children] [& children])}]
     `(def 
        ~(vary-meta name merge m)
-       (partial orpheus.core/h (orpheus.core/element-type ~ns (str ~name) nil)))))
+       (partial orpheus.core/h (orpheus.core/element-type ~ns ~(str name) nil)))))

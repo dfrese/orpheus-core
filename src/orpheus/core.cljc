@@ -169,6 +169,10 @@
   where `arg0` may be a property map, and all following arguments are
   used as child nodes."
   ([type] (_h type nil nil))
+  ([type arg0]
+   (if (and (map? arg0) (not (velement? arg0)))
+     (velement type arg0)
+     (_h type nil (cons arg0 nil))))
   ([type arg0 & args]
    (if (and (map? arg0) (not (velement? arg0)))
      (_h type arg0 args)
