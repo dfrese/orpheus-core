@@ -1,11 +1,9 @@
 (ns orpheus.svg
-  (:require [orpheus.dom :as dom]))
+  (:require [orpheus.core :as core]
+            #?(:cljs [orpheus.impl.util :refer-macros (deftag)])
+            #?(:clj [orpheus.impl.util :refer (deftag)])))
 
-(def svg-ns "http://www.w3.org/2000/svg")
+(def ^:no-doc svg-ns "http://www.w3.org/2000/svg")
 
-(defn- v [name]
-  (let [type (dom/element-type svg-ns name nil)]
-    (partial dom/h type)))
-
-(def svg (v "svg"))
+(deftag svg svg-ns)
 ;; see http://www.w3schools.com/graphics/svg_intro.asp

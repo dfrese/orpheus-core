@@ -1,11 +1,9 @@
 (ns orpheus.math
-  (:require [orpheus.dom :as dom]))
+  (:require [orpheus.core :as core]
+            #?(:cljs [orpheus.impl.util :refer-macros (deftag)])
+            #?(:clj [orpheus.impl.util :refer (deftag)])))
 
-(def mathml-ns "http://www.w3.org/1998/Math/MathML")
+(def ^:no-doc mathml-ns "http://www.w3.org/1998/Math/MathML")
 
-(defn- v [name]
-  (let [type (dom/element-type mathml-ns name nil)]
-    (partial dom/h type)))
-
-(def math (v "math"))
+(deftag math mathml-ns)
 ;; ...
