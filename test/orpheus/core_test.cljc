@@ -8,7 +8,9 @@
          (core/h "div" {"a" 42} "b")))
   (is (= (core/h "div" {"a" 42
                         "childNodes" ["b"]})
-         (core/h "div" {"a" 42} "b"))))
+         (core/h "div" {"a" 42} "b")))
+  (is (= (core/h "div" "test" "test" "test")
+         (core/h "div" {"childNodes" (repeat 3 "test")}))))
 
 (deftest element-type-test
   (is (= (core/element-type "div")

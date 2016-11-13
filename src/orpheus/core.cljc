@@ -92,6 +92,9 @@
              (-invoke [this e]
                       (arrow e))]))
 
+(defn event-handler [f & args]
+  (EventHandler. (apply a/arrow f args)))
+
 (defn event-handler?
   "Returns true if `v` is an event handler."
   [v]
@@ -162,6 +165,7 @@
 
 (defn- _h
   [type props children]
+  (assert (not (contains? props "childNodes")) "Specify the childNodes either as a property, or as the argument list, but not both.")
   (velement type (-> props
                      (assoc "childNodes" children))))
 
@@ -171,7 +175,10 @@
   ([type] (_h type nil nil))
   ([type arg0]
    (if (and (map? arg0) (not (velement? arg0)))
-     (velement type arg0)
+     (velement type (if (contains? arg0 "childNodes")
+                      arg0
+                      ;; otherwise we would not patch the children
+                      (assoc arg0 "childNodes" nil)))
      (_h type nil (cons arg0 nil))))
   ([type arg0 & args]
    (if (and (map? arg0) (not (velement? arg0)))
@@ -183,11 +190,12 @@
 (defn element-type
   "Returns a velement type for dom elements, given a node type string,
   and optionally a namespace and options."
-  ([name] (string/upper-case name))
+  ;; Note: lowercase is at least the standard for html..
+  ([name] (string/lower-case name))
   ([ns name]
    (element-type ns name nil))
   ([ns name options]
-   (ElementType. ns (string/upper-case name) options)))
+   (ElementType. ns (string/lower-case name) options)))
 
 ;; Note custom elements can also be created via ElementType, but this
 ;; is for creation via a constructor function which is more convenient
