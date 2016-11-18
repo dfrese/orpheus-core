@@ -16,9 +16,9 @@
          (core/ve-props (html/div {} "foo"))))
   (is (= {"childNodes" ["foo"]}
          (core/ve-props (html/div "foo"))))
-  (is (= {"childNodes" nil}
+  (is (= {}
          (core/ve-props (html/div {}))))
-  (is (= {"childNodes" nil}
+  (is (= {}
          (core/ve-props (html/div))))
   
   (is (= (html/div {"bar" 42} "foo")

@@ -13,7 +13,7 @@
   ve-props :props)
 
 (defn velement "Returns a velement given a velement type and a property map." [type props]
-  (assert (map? props))
+  (assert (map? props) (str "Props must be a map, not: " (pr-str props)))
   (VElement. type props))
 
 (defn velement? "Returns true if `v` is a velement." [v]
@@ -163,27 +163,23 @@
 
 ;; --- virtual dom elements ---
 
-(defn- _h
-  [type props children]
-  (assert (not (contains? props "childNodes")) "Specify the childNodes either as a property, or as the argument list, but not both.")
-  (velement type (-> props
-                     (assoc "childNodes" children))))
-
 (defn h "Conveniently creates a virtual dom element of the given type,
   where `arg0` may be a property map, and all following arguments are
   used as child nodes."
-  ([type] (_h type nil nil))
-  ([type arg0]
-   (if (and (map? arg0) (not (velement? arg0)))
-     (velement type (if (contains? arg0 "childNodes")
-                      arg0
-                      ;; otherwise we would not patch the children
-                      (assoc arg0 "childNodes" nil)))
-     (_h type nil (cons arg0 nil))))
+  ([type] (velement type {}))
   ([type arg0 & args]
-   (if (and (map? arg0) (not (velement? arg0)))
-     (_h type arg0 args)
-     (_h type nil (cons arg0 args)))))
+   (let [[props children]
+         (if (and (or (nil? arg0) (map? arg0))
+                  (not (velement? arg0)))
+           [(or arg0 {}) args]
+           [{} (cons arg0 args)])]
+     (if (contains? props "childNodes")
+       (do
+         (assert (empty? children)
+                 "Specify the child nodes either as a property, or as the argument list, but not both.")
+         (velement type props))
+       (velement type (cond-> props
+                        (not-empty children) (assoc "childNodes" children)))))))
 
 (defrecord ^:no-doc ElementType [ns name options])
 
