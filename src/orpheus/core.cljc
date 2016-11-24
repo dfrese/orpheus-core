@@ -163,16 +163,27 @@
 
 ;; --- virtual dom elements ---
 
+(defn- is-props? [arg0]
+  (and (or (nil? arg0) (map? arg0))
+       (not (velement? arg0))))
+
+(defn- arg-props [arg0]
+  (if (is-props? arg0)
+    arg0
+    {}))
+
+(defn- arg-children [arg0 args]
+  (if (is-props? arg0)
+    args
+    (cons arg0 args)))
+
 (defn h "Conveniently creates a virtual dom element of the given type,
   where `arg0` may be a property map, and all following arguments are
   used as child nodes."
   ([type] (velement type {}))
   ([type arg0 & args]
-   (let [[props children]
-         (if (and (or (nil? arg0) (map? arg0))
-                  (not (velement? arg0)))
-           [(or arg0 {}) args]
-           [{} (cons arg0 args)])]
+   (let [props (arg-props arg0)
+         children (arg-children arg0 args)]
      (if (contains? props "childNodes")
        (do
          (assert (empty? children)
