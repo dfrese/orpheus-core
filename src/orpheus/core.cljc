@@ -13,7 +13,6 @@
   ve-props :props)
 
 (defn velement "Returns a velement given a velement type and a property map." [type props]
-  (assert (map? props) (str "Props must be a map, not: " (pr-str props)))
   (VElement. type props))
 
 (defn velement? "Returns true if `v` is a velement." [v]
@@ -184,6 +183,7 @@
   ([type arg0 & args]
    (let [props (arg-props arg0)
          children (arg-children arg0 args)]
+     (assert (map? props) (str "Props must be a map, not: " (pr-str props)))
      (if (contains? props "childNodes")
        (do
          (assert (empty? children)
@@ -214,6 +214,18 @@
   [ctor & args]
   (CustomElementType. ctor args))
 
+(defrecord IndirectionType [f args])
+
+(defn indirection-type [f & args]
+  (IndirectionType. f args))
+
+(defn expand-indirection [c]
+  ;; TODO: cache this! (delay or so)
+  (assert (instance? IndirectionType (ve-type c)))
+  (apply (.-f (ve-type c))
+         (ve-props c)
+         (.-args (ve-type c))))
+
 ;; A foreign type could be something like a react component, which can
 ;; be integrated into the dom, but has special rules for construction
 ;; and patching.
@@ -225,6 +237,32 @@
   (-patch-node! [this node old-props new-props options] "Update the dom node for new props of the same type.")
   (-destroy-node! [this node props options] "Clean up the dom node."))
 
-;; Note a 'recursive' foreign type might be useful too, which takes a 'recurse' fn to render embedded velements.
+;; function type components:
 
+(defn- apply+ [props f]
+  (apply f props))
 
+(defn- function-type [f]
+  (indirection-type apply+ f))
+
+(defn ^:no-doc function-ctor
+  "Returns a function to elements for an argument list. To render such
+  an element, `f` will be called with the arguments of the particular
+  instance."
+  [f]
+  (let [t (function-type f)]
+    (fn [& args]
+      (velement t args))))
+
+#?(:clj
+   (defmacro defnc
+     ([name docstring? bindings? & body]
+      (let [docstring (and (string? docstring?) docstring?)
+            bindings (if docstring bindings? docstring?)
+            body (if docstring body (cons bindings? body))]
+        `(def ~name
+           (cond-> (function-ctor (fn ~name ~bindings ~@body))
+             ~docstring (vary-meta assoc :doc ~docstring)))))))
+
+(defn expand-fnc [c]
+  (expand-indirection c))
