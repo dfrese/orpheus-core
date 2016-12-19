@@ -54,7 +54,7 @@
   [f]
   (memoize-n 2 f))
 
-;; --- tagging ---
+;; --- tagging --- ;; TODO: calliope.core might be the better place for this? 
 
 (defrecord ^:no-doc Tagged [value tag])
 
@@ -166,9 +166,19 @@
   (and (or (nil? arg0) (map? arg0))
        (not (velement? arg0))))
 
+(defn ^:no-doc normalize-props [m]
+  ;; Note: keeps string keys as the most efficient usage.
+  (reduce-kv (fn [m k v]
+               ;; TODO: also look into style?!
+               (if (not (string? k))
+                 (-> m (dissoc k) (assoc (name k) v))
+                 m))
+             m
+             m))
+
 (defn- arg-props [arg0]
   (if (is-props? arg0)
-    arg0
+    (normalize-props arg0)
     {}))
 
 (defn- arg-children [arg0 args]
