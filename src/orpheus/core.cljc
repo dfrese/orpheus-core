@@ -1,5 +1,6 @@
 (ns orpheus.core
   (:require [active.clojure.arrow :as a]
+            [edomus.core :as dom]
             [clojure.string :as string]))
 
 (defrecord ^:no-doc VElement [type props])
@@ -202,7 +203,23 @@
        (velement type (cond-> props
                         (not-empty children) (assoc "childNodes" children)))))))
 
-(defrecord ^:no-doc ElementType [ns name options])
+(defprotocol ^:no-doc
+  IElementType
+  (create-element-node [this document] "Create the element node, with edomus functions.")
+  (element-node-was-created! [this element] "The element node was create and its properties are set, in an edomus context.")
+  (element-node-will-be-updated! [this element] "The element node is about to be updated.")
+  (element-node-was-updated! [this element] "The element node was updated with new properties, in an edomus context.")
+  (element-node-will-be-removed! [this element] "The element node is about to be removed from the dom, in an edomus context."))
+
+(defrecord ^:no-doc SimpleElementType
+  [ns name options]
+  IElementType
+  (create-element-node [this document]
+    (dom/create-element-ns document ns name options))
+  (element-node-was-created! [this element] nil)
+  (element-node-will-be-updated! [this element] nil)
+  (element-node-was-updated! [this element] nil)
+  (element-node-will-be-removed! [this element] nil))
 
 (defn element-type
   "Returns a velement type for dom elements, given a node type string,
@@ -212,48 +229,48 @@
   ([ns name]
    (element-type ns name nil))
   ([ns name options]
-   (ElementType. ns (string/lower-case name) options)))
+   (SimpleElementType. ns (string/lower-case name) options)))
 
 ;; Note custom elements can also be created via ElementType, but this
 ;; is for creation via a constructor function which is more convenient
 ;; in some situations.
-(defrecord ^:no-doc CustomElementType [ctor args])
+;; FIXME: ..can't be edomus compatible.
+#_(defrecord ^:no-doc CustomElementType
+  [ctor args]
+  IElementType
+  (create-element-type-node [this document]
+    (ctor args)))
 
-(defn custom-element-type
+#_(defn custom-element-type
   "Returns a velement type for a custom constructor function and optional arguments."
   [ctor & args]
   (CustomElementType. ctor args))
 
-(defrecord IndirectionType [f args])
-
-(defn indirection-type [f & args]
-  (IndirectionType. f args))
-
-(defn expand-indirection [c]
-  ;; TODO: cache this! (delay or so)
-  (assert (instance? IndirectionType (ve-type c)))
-  (apply (.-f (ve-type c))
-         (ve-props c)
-         (.-args (ve-type c))))
+(defprotocol IIndirectionType
+  (expand-indirection [this props]))
 
 ;; A foreign type could be something like a react component, which can
 ;; be integrated into the dom, but has special rules for construction
 ;; and patching.
-(defprotocol ForeignType
+(defprotocol IForeignType
   "A protocol for velement types with special node creation and update
   methods, where the velement properties may represent something
   other that dom element properties."
-  (-create-node [this props options] "Create a dom node for this type and props.")
-  (-patch-node! [this node old-props new-props options] "Update the dom node for new props of the same type.")
-  (-destroy-node! [this node props options] "Clean up the dom node."))
+  ;; FIXME: mention edomus; might need to flush/delay (if node must be mounted)
+  (foreign-type-create [this props options] "Create a dom node for this type and props.")
+  (foreign-type-patch! [this node old-props new-props options] "Update the dom node for new props of the same type.")
+  (foreign-type-destroy! [this node props options] "Clean up the dom node."))
 
 ;; function type components:
 
-(defn- apply+ [props f]
-  (apply f props))
+(defrecord ^:no-doc FunctionComponentType
+  [f]
+  IIndirectionType
+  (expand-indirection [this props]
+    (apply f props)))
 
 (defn- function-type [f]
-  (indirection-type apply+ f))
+  (FunctionComponentType. f))
 
 (defn ^:no-doc function-ctor
   "Returns a function to elements for an argument list. To render such
@@ -274,5 +291,5 @@
            (cond-> (function-ctor (fn ~name ~bindings ~@body))
              ~docstring (vary-meta assoc :doc ~docstring)))))))
 
-(defn expand-fnc [c]
-  (expand-indirection c))
+(defn expand-fnc [c] ;; TODO: doc; only for testing.
+  (expand-indirection (ve-type c) (ve-props c)))
