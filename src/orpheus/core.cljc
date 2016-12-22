@@ -171,19 +171,24 @@
   ;; Note: keeps string keys as the most efficient usage.
   (reduce-kv (fn [m k v]
                ;; TODO: also look into style?!
-               (if (not (string? k))
-                 (-> m (dissoc k) (assoc (name k) v))
-                 m))
+               (cond-> m
+                 (not (string? k))
+                 (-> (dissoc k) (assoc (name k) v))
+
+                 ;; childNodes as a vector greatly helps patching.
+                 (and (= "childNodes" (name k))
+                      (not (vector? v)))
+                 (update "childNodes" vec)))
              m
              m))
 
-(defn- arg-props [arg0]
-  (if (is-props? arg0)
+(defn- arg-props [t arg0]
+  (if t
     (normalize-props arg0)
     {}))
 
-(defn- arg-children [arg0 args]
-  (if (is-props? arg0)
+(defn- arg-children [t arg0 args]
+  (if t
     args
     (cons arg0 args)))
 
@@ -192,8 +197,9 @@
   used as child nodes."
   ([type] (velement type {}))
   ([type arg0 & args]
-   (let [props (arg-props arg0)
-         children (arg-children arg0 args)]
+   (let [t (is-props? arg0)
+         props (arg-props t arg0)
+         children (arg-children t arg0 args)]
      (assert (map? props) (str "Props must be a map, not: " (pr-str props)))
      (if (contains? props "childNodes")
        (do
@@ -201,7 +207,8 @@
                  "Specify the child nodes either as a property, or as the argument list, but not both.")
          (velement type props))
        (velement type (cond-> props
-                        (not-empty children) (assoc "childNodes" children)))))))
+                        ;; childNodes as a vector greatly helps patching.
+                        (not-empty children) (assoc "childNodes" (vec children))))))))
 
 (defprotocol ^:no-doc
   IElementType
