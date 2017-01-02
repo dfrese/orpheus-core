@@ -232,7 +232,6 @@
   "Returns a velement type for dom elements, given a node type string,
   and optionally a namespace and options."
   ;; Note: lowercase is at least the standard for html..
-  ([name] (string/lower-case name))
   ([ns name]
    (element-type ns name nil))
   ([ns name options]

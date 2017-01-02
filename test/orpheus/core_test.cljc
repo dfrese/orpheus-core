@@ -18,9 +18,9 @@
                     "childNodes"))))
 
 (deftest element-type-test
-  (is (= (core/element-type "div")
-         (core/element-type "DIV")))
-  (let [t (core/element-type "div")]
+  (is (= (core/element-type "http://www.w3.org/1999/xhtml" "div")
+         (core/element-type "http://www.w3.org/1999/xhtml" "DIV")))
+  (let [t (core/element-type "http://www.w3.org/1999/xhtml" "div")]
     (is (= t (core/ve-type (core/h t {}))))))
 
 (deftest function-type-test
