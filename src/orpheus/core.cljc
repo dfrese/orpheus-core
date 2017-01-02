@@ -263,7 +263,6 @@
   "A protocol for velement types with special node creation and update
   methods, where the velement properties may represent something
   other that dom element properties."
-  ;; FIXME: mention edomus; might need to flush/delay (if node must be mounted)
   (foreign-type-create [this props options] "Create a dom node for this type and props.")
   (foreign-type-patch! [this node old-props new-props options] "Update the dom node for new props of the same type.")
   (foreign-type-destroy! [this node props options] "Clean up the dom node."))
