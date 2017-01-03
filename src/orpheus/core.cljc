@@ -220,6 +220,10 @@
 
 (defrecord ^:no-doc SimpleElementType
   [ns name options]
+  #?@(:cljs [IFn
+             (-invoke [this & args] (apply h this args))])
+  #?@(:clj [clojure.lang.IFn
+            (invoke [this & args] (apply h this args))])
   IElementType
   (create-element-node [this document]
     (dom/create-element-ns document ns name options))
