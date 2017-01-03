@@ -257,15 +257,15 @@
   (CustomElementType. ctor args))
 
 (defprotocol IIndirectionType
-  (expand-indirection [this props]))
+  (expand-indirection [this props] "Returns a different velement object, that this type and properties stand for."))
 
 ;; A foreign type could be something like a react component, which can
 ;; be integrated into the dom, but has special rules for construction
 ;; and patching.
 (defprotocol IForeignType
   "A protocol for velement types with special node creation and update
-  methods, where the velement properties may represent something
-  other that dom element properties."
+  methods. There are no restrictions on the type of properties, which
+  are directly taken from the argument to [[velement]]."
   (foreign-type-create [this props options] "Create a dom node for this type and props.")
   (foreign-type-patch! [this node old-props new-props options] "Update the dom node for new props of the same type.")
   (foreign-type-destroy! [this node props options] "Clean up the dom node."))
