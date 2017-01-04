@@ -213,7 +213,7 @@
 (defprotocol ^:no-doc
   IElementType
   (create-element-node [this document] "Create the element node, with edomus functions.")
-  (element-node-was-created! [this element] "The element node was create and its properties are set, in an edomus context.")
+  (element-node-was-created! [this element] "The element node was created and its properties are set, in an edomus context.")
   (element-node-will-be-updated! [this element] "The element node is about to be updated.")
   (element-node-was-updated! [this element] "The element node was updated with new properties, in an edomus context.")
   (element-node-will-be-removed! [this element] "The element node is about to be removed from the dom, in an edomus context."))
