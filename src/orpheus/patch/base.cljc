@@ -23,8 +23,7 @@
 
 (defn ^:no-doc set-simple-property! [element name value options]
   (if-let [etype (and (or (nil? value) ;; nil for removal :-/ TODO: look at old-v if it's an handler instead
-                          (fn? value)
-                          (core/event-handler? value))
+                          (ifn? value))
                       (event-type? name))]
     (do
       ;; set event handlers as a side effect, unfortunately; but the
@@ -34,9 +33,7 @@
       ;; dispatchEvent - so we map them here.
       (if (nil? value)
         (dom-event/unset-event-handler! element etype)
-        (let [f (if (core/event-handler? value)
-                  (core/create-js-event-handler value (:dispatch! options))
-                  value)]
+        (let [f (core/create-js-event-handler value (:dispatch! options))]
           (dom-event/set-event-handler! element etype f)))
       nil)
     ;; any other prop

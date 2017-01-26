@@ -5,14 +5,13 @@
   (:refer-clojure :exclude [time]))
 
 #?(:cljs
-   (def target-value ^{:doc "An event handler, that returns the `target.value`"}
-     (core/event-handler-> (fn [^js/Event e]
-                             (.-value (.-target e))))))
+   (defn target-value "Return the `target.value` of an event"
+     [^js/Event e]
+     (.-value (.-target e))))
 
 #?(:cljs
-   (def target-checked ^{:doc "An event handler, that returns the `target.checked`."}
-     (core/event-handler-> (fn [^js/Event e]
-                             (.-checked (.-target e))))))
+   (defn target-checked "Return the `target.checked` of an event." [^js/Event e]
+     (.-checked (.-target e))))
 
 ;; TODO: keys, mouse positions/clicks?
 

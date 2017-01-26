@@ -11,7 +11,7 @@
   changed when comparing `old-props` with `new-props`. The `options`
   argument may be a map with a `:sync?` setting, resulting in
   synchronous modification, and a `:dispatch!` function used to
-  augment property value of type [[core/event-handler]]."
+  augment event handlers."
   [element state props & [options]]
   ;; TODO: make state the first arg?
   (assert (map? props) (str "Properties to patch must be a map of properties to their values, not: " (pr-str props)))

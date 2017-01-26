@@ -1,6 +1,6 @@
 (ns orpheus.core
-  (:require [active.clojure.arrow :as a]
-            [edomus.core :as dom]
+  (:require [edomus.core :as dom]
+            [dfrese.clojure-utils.functions :as f]
             [clojure.string :as string]))
 
 (defrecord ^:no-doc VElement [type props])
@@ -70,9 +70,9 @@
   (instance? Tagged v))
 
 (defn tag
-  "Returns an arrow that wraps any value as a [[tagged]] value with `t` as the tag."
+  "Returns a function that wraps any value as a [[tagged]] value with `t` as the tag."
   [t]
-  (a/arrow ->Tagged t))
+  (f/partial tagged t))
 
 (defn untag
   "Returns a tuple `[tag value]`, if `v` is a [[tagged]] value, or `[v nil]` otherwise."
@@ -83,62 +83,12 @@
 
 ;; --- event handler ---
 
-(defrecord EventHandler ^:no-doc [arrow]
-  ;; Implement IFn, for convenience in test cases.
-  #?@(:clj [clojure.lang.IFn
-            (invoke [this e]
-                    (arrow e))])
-  #?@(:cljs [IFn
-             (-invoke [this e]
-                      (arrow e))]))
-
-(defn event-handler [f & args]
-  (EventHandler. (apply a/arrow f args)))
-
-(defn event-handler?
-  "Returns true if `v` is an event handler."
-  [v]
-  (instance? EventHandler v))
-
-(defn ^:no-doc when-not-nil
-  ([v a]
-   (when-not (nil? v)
-     (a v)))
-  ([a]
-   (a/arrow when-not-nil a)))
-
-(defn ^:no-doc event-handler-arrow [^EventHandler eh]
-  (.-arrow eh))
-
-(defn event-handler->
-  "Returns an event handler, from an arrow or one-argument function,
-  optionally adding arrows to transform the event before it is
-  dispatched later on. Note that the compisiton of the arrows is
-  modified, so that if one returns `nil`, the following arrows are not
-  applied anymore."
-  ([]
-   (event-handler-> a/ident))
-  ([v]
-   (if (event-handler? v)
-     v
-     (EventHandler. (a/arrow v))))
-  ([a0 & as]
-   (if (event-handler? a0)
-     (EventHandler. (apply a/>>> (event-handler-arrow a0) (map when-not-nil as)))
-     (EventHandler. (apply a/>>> a0 (map when-not-nil as))))))
-
-(defn const-handler
-  "Returns an event handler, that always translates an event to the given value `v`."
-  [v]
-  (event-handler-> (a/const v)))
-
 (defn ^:no-doc create-js-event-handler [h dispatch!]
-  (assert (event-handler? h))
   (comp (if dispatch!
           (fn [e] (when (some? e)
                     (dispatch! e)))
           (constantly nil))
-        (event-handler-arrow h)))
+        h))
 
 (comment TODO put somewhere
          "Turns `f` into an event handler. The DOM event is passed to `f`,
@@ -150,16 +100,14 @@
          )
 
 #?(:cljs
-   (def prevent-default
-     (event-handler-> (fn [^js/Event e]
-                        (.preventDefault e)
-                        e))))
+   (defn prevent-default! [^js/Event e]
+     (.preventDefault e)
+     e))
 
 #?(:cljs
-   (def stop-propagation
-     (event-handler-> (fn [^js/Event e]
-                        (.stopPropagation e)
-                        e))))
+   (defn stop-propagation! [^js/Event e]
+     (.stopPropagation e)
+     e))
 
 ;; --- virtual dom elements ---
 
