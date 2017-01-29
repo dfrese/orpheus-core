@@ -1,8 +1,8 @@
-(ns orpheus.core-test
+(ns dfrese.orpheus.core-test
   (:require #?@(:cljs [[cljs.test :refer-macros [deftest is testing]]
-                       [orpheus.core :as core :include-macros true]])
+                       [dfrese.orpheus.core :as core :include-macros true]])
             #?@(:clj [[clojure.test :refer [deftest is testing]]
-                      [orpheus.core :as core]])))
+                      [dfrese.orpheus.core :as core]])))
 
 (deftest h-test
   (is (= (core/h "div" {"a" 42} "b")

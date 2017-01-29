@@ -1,7 +1,7 @@
-(ns orpheus.html
-  (:require [orpheus.core :as core]
-            #?(:cljs [orpheus.impl.util :refer-macros (deftag)])
-            #?(:clj [orpheus.impl.util :refer (deftag)]))
+(ns dfrese.orpheus.html
+  (:require [dfrese.orpheus.core :as core]
+            #?(:cljs [dfrese.orpheus.impl.util :refer-macros (deftag)])
+            #?(:clj [dfrese.orpheus.impl.util :refer (deftag)]))
   (:refer-clojure :exclude [time]))
 
 #?(:cljs

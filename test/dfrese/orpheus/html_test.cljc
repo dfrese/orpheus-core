@@ -1,8 +1,8 @@
-(ns orpheus.html-test
+(ns dfrese.orpheus.html-test
   (:require #?(:cljs [cljs.test :refer-macros [deftest is testing]])
             #?(:clj [clojure.test :refer [deftest is testing]])
-            [orpheus.core :as core]
-            [orpheus.html :as html]))
+            [dfrese.orpheus.core :as core]
+            [dfrese.orpheus.html :as html]))
 
 (deftest html-test
   (is (= (core/element-type html/html-ns "div")

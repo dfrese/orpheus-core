@@ -1,7 +1,7 @@
-(ns orpheus.patch.base-test
+(ns dfrese.orpheus.patch.base-test
   (:require [cljs.test :refer-macros [deftest is testing]]
-            [orpheus.patch.base :as base]
-            [edomus.event :as dom-event]))
+            [dfrese.orpheus.patch.base :as base]
+            [dfrese.edomus.event :as dom-event]))
 
 (deftest event-type?-test
   (is (base/event-type? "onclick"))

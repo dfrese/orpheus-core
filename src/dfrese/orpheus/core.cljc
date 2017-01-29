@@ -1,5 +1,5 @@
-(ns orpheus.core
-  (:require [edomus.core :as dom]
+(ns dfrese.orpheus.core
+  (:require [dfrese.edomus.core :as dom]
             [dfrese.clojure-utils.functions :as f]
             [clojure.string :as string]))
 

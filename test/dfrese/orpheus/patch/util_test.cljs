@@ -1,6 +1,6 @@
-(ns orpheus.patch.util-test
+(ns dfrese.orpheus.patch.util-test
   (:require [cljs.test :refer-macros [deftest is testing]]
-            [orpheus.patch.util :as util]))
+            [dfrese.orpheus.patch.util :as util]))
 
 (deftest patch-map-test
   (testing "it works as expected"

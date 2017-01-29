@@ -1,4 +1,4 @@
-(defproject de.active-group/orpheus-core "0.1.0-SNAPSHOT"
+(defproject dfrese/orpheus-core "0.1.0-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -6,8 +6,8 @@
 
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
                  [org.clojure/clojurescript "1.9.229" :scope "provided"]
-                 [de.active-group/edomus "0.1.0-SNAPSHOT"]
-                 [de.dfrese/clojure-utils "0.1.0-SNAPSHOT"]]
+                 [dfrese/edomus "0.1.0-SNAPSHOT"]
+                 [dfrese/clojure-utils "0.1.0-SNAPSHOT"]]
 
   :plugins [[lein-cljsbuild "1.1.4"]
             [lein-doo "0.1.7"]
@@ -19,11 +19,11 @@
              :compiler {:output-to "target/test.js"
                         :output-dir "target"
                         :optimizations :none
-                        :main orpheus.runner}}}}
+                        :main dfrese.orpheus.runner}}}}
 
   :doo {:build "test"}
 
   :codox {:language :clojurescript
           :metadata {:doc/format :markdown}
-          :namespaces [#"^orpheus\.(?!impl)"]}
+          :namespaces [#"^dfrese.orpheus\.(?!impl)"]}
   )

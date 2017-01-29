@@ -1,9 +1,9 @@
-(ns orpheus.patch-test
+(ns dfrese.orpheus.patch-test
   (:require [cljs.test :refer-macros [deftest is testing]]
-            [orpheus.patch :as patch]
-            [orpheus.lift :as lift]
-            [orpheus.html :as html]
-            [orpheus.core :as core :include-macros true]))
+            [dfrese.orpheus.patch :as patch]
+            [dfrese.orpheus.lift :as lift]
+            [dfrese.orpheus.html :as html]
+            [dfrese.orpheus.core :as core :include-macros true]))
 
 (defn cleanup! []
   (let [b (.-body js/document)]

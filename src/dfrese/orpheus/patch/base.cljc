@@ -1,9 +1,9 @@
-(ns orpheus.patch.base
+(ns dfrese.orpheus.patch.base
   "Functions to apply a virtual dom to a real dom."
-  (:require [orpheus.core :as core]
-            [orpheus.patch.util :as util]
-            [edomus.core :as dom]
-            [edomus.event :as dom-event]
+  (:require [dfrese.orpheus.core :as core]
+            [dfrese.orpheus.patch.util :as util]
+            [dfrese.edomus.core :as dom]
+            [dfrese.edomus.event :as dom-event]
             [clojure.set :as set]))
 
 (declare patch-children!)

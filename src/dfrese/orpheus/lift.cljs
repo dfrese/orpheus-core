@@ -1,8 +1,8 @@
-(ns orpheus.lift
+(ns dfrese.orpheus.lift
   "Read a real dom structure into a virtual dom tree."
-  (:require [orpheus.core :as core]
-            [edomus.core :as dom]
-            [edomus.browser :as dom-browser]))
+  (:require [dfrese.orpheus.core :as core]
+            [dfrese.edomus.core :as dom]
+            [dfrese.edomus.browser :as dom-browser]))
 
 (declare lift-properties)
 

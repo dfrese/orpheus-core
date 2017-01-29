@@ -1,5 +1,5 @@
-(ns orpheus.impl.util
-  (:require orpheus.core))
+(ns dfrese.orpheus.impl.util
+  (:require dfrese.orpheus.core))
 
 (defmacro deftag [name ns]
   (let [doc (str "Returns a virtual `" (str name) "` element for an optional property map and children.")
@@ -7,4 +7,4 @@
            :arglists ''([props & children] [& children])}]
     `(def 
        ~(vary-meta name merge m)
-       (orpheus.core/element-type ~ns ~(str name) nil))))
+       (dfrese.orpheus.core/element-type ~ns ~(str name) nil))))

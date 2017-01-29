@@ -1,8 +1,8 @@
-(ns orpheus.lift-test
+(ns dfrese.orpheus.lift-test
   (:require [cljs.test :refer-macros [deftest is testing]]
-            [orpheus.core :as core]
-            [orpheus.lift :as lift]
-            [orpheus.html :as html]))
+            [dfrese.orpheus.core :as core]
+            [dfrese.orpheus.lift :as lift]
+            [dfrese.orpheus.html :as html]))
 
 (deftest lift-test
   (testing "it lifts basic children"

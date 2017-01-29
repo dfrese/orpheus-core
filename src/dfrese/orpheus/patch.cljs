@@ -1,9 +1,9 @@
-(ns orpheus.patch
+(ns dfrese.orpheus.patch
   "Functions to apply a virtual dom to a real dom."
-  (:require [edomus.core :as dom]
-            [orpheus.core :as core]
-            [orpheus.patch.base :as base]
-            [edomus.browser :as dom-browser]))
+  (:require [dfrese.orpheus.core :as core]
+            [dfrese.orpheus.patch.base :as base]
+            [dfrese.edomus.core :as dom]
+            [dfrese.edomus.browser :as dom-browser]))
 
 ;; TODO: fix doc
 (defn patch-properties!
