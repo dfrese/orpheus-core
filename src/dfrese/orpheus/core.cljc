@@ -55,32 +55,6 @@
   [f]
   (memoize-n 2 f))
 
-;; --- tagging --- ;; TODO: calliope.core might be the better place for this? 
-
-(defrecord ^:no-doc Tagged [value tag])
-
-(defn tagged
-  "Returns `v` tagged with `tag`."
-  [tag v]
-  (Tagged. v tag))
-
-(defn tagged?
-  "Returns true if `v` is a tagged value."
-  [v]
-  (instance? Tagged v))
-
-(defn tag
-  "Returns a function that wraps any value as a [[tagged]] value with `t` as the tag."
-  [t]
-  (f/partial tagged t))
-
-(defn untag
-  "Returns a tuple `[tag value]`, if `v` is a [[tagged]] value, or `[v nil]` otherwise."
-  [v]
-  (if (tagged? v)
-    [(:tag v) (:value v)]
-    [v nil]))
-
 ;; --- event handler ---
 
 (defn ^:no-doc create-js-event-handler [h dispatch!]
