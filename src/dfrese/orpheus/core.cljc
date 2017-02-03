@@ -1,6 +1,6 @@
 (ns dfrese.orpheus.core
   (:require [dfrese.edomus.core :as dom]
-            [dfrese.clojure-utils.functions :as f]
+            [dfrese.clj.functions :as f]
             [clojure.string :as string]))
 
 (defrecord ^:no-doc VElement [type props])
