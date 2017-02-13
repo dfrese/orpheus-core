@@ -15,6 +15,17 @@
 
 ;; TODO: keys, mouse positions/clicks?
 
+(defn property [element p]
+  (get (core/ve-props element) (name p)))
+
+(defn update-property [element p f & args]
+  (core/h (core/ve-type element)
+          (apply update (core/ve-props) f args)))
+
+(defn set-property [element p v]
+  (core/h (core/ve-type element)
+          (assoc (core/ve-props) (name p) v)))
+
 (def ^:no-doc html-ns "http://www.w3.org/1999/xhtml")
 
 (deftag h1 html-ns)
