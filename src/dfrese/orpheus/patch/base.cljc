@@ -148,13 +148,15 @@
         (assert (= (core/ve-type old-vdom) (core/ve-type new-vdom))) ;; impl error
         (cond
           (satisfies? core/IElementType type)
-          (do (core/element-node-will-be-updated! type node)
-              (patch-properties! node
-                                 (core/ve-props old-vdom) (core/ve-props new-vdom)
-                                 document
-                                 options)
-              (core/element-node-was-updated! type node)
-              nil)
+          (let [old-props (core/ve-props old-vdom)
+                new-props (core/ve-props new-vdom)]
+            (core/element-node-will-be-updated! type node old-props new-props)
+            (patch-properties! node
+                               old-props new-props
+                               document
+                               options)
+            (core/element-node-was-updated! type node new-props)
+            nil)
         
           (satisfies? core/IIndirectionType type)
           (recur (core/expand-indirection type old-props) (core/expand-indirection type new-props))

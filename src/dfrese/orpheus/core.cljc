@@ -136,8 +136,8 @@
   IElementType
   (create-element-node [this document] "Create the element node, with edomus functions.")
   (element-node-was-created! [this element] "The element node was created and its properties are set, in an edomus context.")
-  (element-node-will-be-updated! [this element] "The element node is about to be updated.")
-  (element-node-was-updated! [this element] "The element node was updated with new properties, in an edomus context.")
+  (element-node-will-be-updated! [this element old-props new-props] "The element node is about to be updated.")
+  (element-node-was-updated! [this element props] "The element node was updated with new properties, in an edomus context.")
   (element-node-will-be-removed! [this element] "The element node is about to be removed from the dom, in an edomus context."))
 
 (defrecord ^:no-doc SimpleElementType
@@ -150,8 +150,8 @@
   (create-element-node [this document]
     (dom/create-element-ns document ns name options))
   (element-node-was-created! [this element] nil)
-  (element-node-will-be-updated! [this element] nil)
-  (element-node-was-updated! [this element] nil)
+  (element-node-will-be-updated! [this element old-props new-props] nil)
+  (element-node-was-updated! [this element props] nil)
   (element-node-will-be-removed! [this element] nil))
 
 (defn element-type
