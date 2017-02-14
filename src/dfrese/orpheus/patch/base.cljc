@@ -13,11 +13,17 @@
 
 (def ^:no-doc event-type-re #"(?i)on(.*)")
 (def ^:no-doc event-type-capture-re #"(?i)on(.*)capture")
+
+(defn ^:no-doc event-type-name? [s]
+  (if-let [[_ name] (re-matches event-type-re s)]
+    name
+    nil))
+
 (defn ^:no-doc event-type? [s]
   ;; TODO: optimize; probably quite slow.
   (if-let [[_ name] (re-matches event-type-capture-re s)]
     (dom-event/event-type name true)
-    (if-let [[_ name] (re-matches event-type-re s)]
+    (if-let [name (event-type-name? s)]
       (dom-event/event-type name false)
       nil)))
 
