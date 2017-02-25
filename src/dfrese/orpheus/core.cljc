@@ -19,41 +19,6 @@
 (defn velement? "Returns true if `v` is a velement." [v]
   (instance? VElement v))
 
-(defn memoize-1
-  "Returns a memoized version of the given function `f` just
-  like [[clojure.core/memoize]], but only one result is cached."
-  [f]
-  (let [mem (atom nil)]
-    (fn [& args]
-      (let [v @mem]
-        (if (and v (= (first v) args))
-          (second v)
-          (let [v (apply f args)]
-            (reset! mem [args v])
-            v))))))
-
-(defn memoize-n
-  "Returns a memoized version of the given function `f` just
-  like [[clojure.core/memoize]], but only the last `n` results are
-  cached."
-  [n f]
-  (let [mem (atom (array-map))]
-    (fn [& args]
-      (if-let [e (find @mem args)]
-        (val e)
-        (let [ret (apply f args)]
-          (swap! mem (fn [m]
-                       (-> m
-                           (dissoc (first (first m)))
-                           (assoc args ret))))
-          ret)))))
-
-(defn memoize-2
-  "Returns a memoized version of the given function `f` just
-  like [[clojure.core/memoize]], but only the last two results are
-  cached."
-  [f]
-  (memoize-n 2 f))
 
 ;; --- event handler ---
 
