@@ -117,8 +117,10 @@
              props))
 
 (defn ^:no-doc create-child [document vdom options]
-  (loop [vdom vdom]
-    (if (core/velement? vdom)
+  (loop [vdom vdom
+         options options]
+    (cond
+      (core/velement? vdom)
       (let [type (core/ve-type vdom)
             props (core/ve-props vdom)]
         (cond
@@ -130,50 +132,67 @@
             e)
 
           (satisfies? core/IIndirectionType type)
-          (recur (core/expand-indirection type (core/ve-props vdom)))
+          (recur (core/expand-indirection type (core/ve-props vdom))
+                 options)
 
           (satisfies? core/IForeignType type)
           (core/foreign-type-create type props options)
 
           :else
           (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {}))))
+      (core/with-context-update? vdom)
+      (recur (:content vdom) (apply (:update-options vdom) options))
+      :else
       (dom/create-text-node document (to-text vdom)))))
 
 ;; ----
 
 (defn ^:no-doc alter-child! [document options node old-vdom new-vdom]
   (loop [old-vdom old-vdom
-         new-vdom new-vdom]
-    (if (core/velement? old-vdom)
+         new-vdom new-vdom
+         options options]
+    (cond
+      (core/velement? old-vdom)
       ;; update an element of same type.
-      (let [type (core/ve-type old-vdom)
-            old-props (core/ve-props old-vdom)
-            new-props (core/ve-props new-vdom)]
-        (when-not (dom/element? node)
-          (throw (ex-info (str "Actual node is not an element, where the previous vdom is: " (pr-str old-vdom) ", " node ".") {})))
-        (assert (= (core/ve-type old-vdom) (core/ve-type new-vdom))) ;; impl error
-        (cond
-          (satisfies? core/IElementType type)
-          (let [old-props (core/ve-props old-vdom)
-                new-props (core/ve-props new-vdom)]
-            (core/element-node-will-be-updated! type node old-props new-props)
-            (patch-properties! node
-                               old-props new-props
-                               document
-                               options)
-            (core/element-node-was-updated! type node new-props)
-            nil)
-        
-          (satisfies? core/IIndirectionType type)
-          (recur (core/expand-indirection type old-props) (core/expand-indirection type new-props))
-
-          (satisfies? core/IForeignType type)
-          (do (core/foreign-type-patch! type node old-props new-props options)
+      (do
+        (assert (core/velement? new-vdom))
+        (let [type (core/ve-type old-vdom)
+              old-props (core/ve-props old-vdom)
+              new-props (core/ve-props new-vdom)]
+          (when-not (dom/element? node)
+            (throw (ex-info (str "Actual node is not an element, where the previous vdom is: " (pr-str old-vdom) ", " node ".") {})))
+          (assert (= (core/ve-type old-vdom) (core/ve-type new-vdom))) ;; impl error
+          (cond
+            (satisfies? core/IElementType type)
+            (let [old-props (core/ve-props old-vdom)
+                  new-props (core/ve-props new-vdom)]
+              (core/element-node-will-be-updated! type node old-props new-props)
+              (patch-properties! node
+                                 old-props new-props
+                                 document
+                                 options)
+              (core/element-node-was-updated! type node new-props)
               nil)
-          
-          :else
-          (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {}))))
+        
+            (satisfies? core/IIndirectionType type)
+            (recur (core/expand-indirection type old-props) (core/expand-indirection type new-props)
+                   options)
 
+            (satisfies? core/IForeignType type)
+            (do (core/foreign-type-patch! type node old-props new-props options)
+                nil)
+          
+            :else
+            (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {})))))
+
+      (core/with-context-update? old-vdom)
+      (do
+        (assert (core/with-context-update? new-vdom))
+        (assert (= (:update-options old-vdom) (:update-options new-vdom)))
+        (recur (:content old-vdom) (:content new-vdom)
+               (apply (:update-options new-vdom) options)))
+      
+      :else
       ;; update text of a textnode to new-vdom (a string or anything else)
       (do
         (when-not (dom/text-node? node)
@@ -206,9 +225,14 @@
 (defn ^:no-doc similar-vdom?
   "Aka 'updateable' element"
   [vdom1 vdom2]
-  (if (core/velement? vdom1)
+  (cond
+    (core/velement? vdom1)
     (and (core/velement? vdom2)
          (similar-velement? vdom1 vdom2))
+    (core/with-context-update? vdom1)
+    (and (core/with-context-update? vdom2)
+         (= (:update-options vdom1) (:update-options vdom2)))
+    :else
     (not (core/velement? vdom2))))
 
 (def indices

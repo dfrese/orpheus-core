@@ -19,6 +19,27 @@
 (defn velement? "Returns true if `v` is a velement." [v]
   (instance? VElement v))
 
+(defrecord ^:no-doc WithContextUpdate [content update-options])
+
+(defn with-context-update [content update-options]
+  (WithContextUpdate. content update-options))
+
+(defn with-context-update? [v]
+  (instance? WithContextUpdate v))
+
+(defn- mupd [f args options]
+  (apply f (concat args [options])))
+
+(defn translate
+  "Translate all messages sent by `element`, by piping them through `f`, which may return nil to skip the message."
+  ([element f]
+   (with-context-update element f))
+  ([element f & args]
+   (with-context-update (f/partial mupd f args)
+     element)))
+
+(defn with-context [content options]
+  (with-context-update content (f/constantly options)))
 
 ;; --- event handler ---
 

@@ -18,8 +18,8 @@
     (.appendChild e (.createElement js/document "div"))
     [e (lift/lift-properties e)]))
 
-(defn patch-properties! [node state props]
-  (patch/patch-properties! node state props))
+(defn patch-properties! [node state props & [options]]
+  (patch/patch-properties! node state props options))
 
 (deftest patch-properties!-test
   (testing "it patches simple properties"
@@ -102,3 +102,38 @@
       (is (= 10 (getn node)))
       (let [state (patch-properties! node state (mk 3))]
         (is (= 3 (getn node)))))))
+
+(deftest patch-with-context-test
+  (let [[node state] (prepare!)
+        ev (atom nil)
+        state (patch-properties! node state {})]
+    ;; basic
+    (let [state (patch-properties!
+                 node state
+                 {:childNodes [(core/with-context
+                                 (html/div {:onClick (constantly :test)})
+                                 {:dispatch! (fn [x] (reset! ev x))})]})]
+      (.dispatchEvent (.-firstChild node)
+                      (new js/Event "click"))
+      (is (= @ev :test))
+
+      ;; changing context
+      (let [state (patch-properties!
+                   node state
+                   {:childNodes [(core/with-context
+                                   (html/div {:onClick (constantly :test)})
+                                   {:dispatch! (fn [x] (reset! ev :foobar))})]})]
+        (.dispatchEvent (.-firstChild node)
+                        (new js/Event "click"))
+        (is (= @ev :foobar))
+
+        ;; back to default.
+        (let [state (patch-properties!
+                     node state
+                     {:childNodes [(html/div {:onClick (constantly :test)})]}
+                     {:dispatch! (fn [x] (reset! ev :baz))})]
+          (.dispatchEvent (.-firstChild node)
+                          (new js/Event "click"))
+          (is (= @ev :baz))
+          
+          )))))
