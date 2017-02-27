@@ -154,13 +154,22 @@
             (invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20] (h this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20))
             (invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20 a21] (h this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20 a21))
             (applyTo [this args] (apply h this args))])
+  ;; TODO: optimize options lookups (they are fixed)
   IElementType
   (create-element-node [this document]
-    (dom/create-element-ns document ns name options))
-  (element-node-was-created! [this element] nil)
-  (element-node-will-be-updated! [this element old-props new-props] nil)
-  (element-node-was-updated! [this element props] nil)
-  (element-node-will-be-removed! [this element] nil))
+    (dom/create-element-ns document ns name {:is (:is options)}))
+  (element-node-was-created! [this element]
+    (when-let [f (:node-was-created! options)]
+      (f element)))
+  (element-node-will-be-updated! [this element old-props new-props]
+    (when-let [f (:node-will-be-updated! options)]
+      (f element old-props new-props)))
+  (element-node-was-updated! [this element props]
+    (when-let [f (:node-was-updated! options)]
+      (f element props)))
+  (element-node-will-be-removed! [this element]
+    (when-let [f (:node-will-be-removed! options)]
+      (f element))))
 
 (defn element-type
   "Returns a velement type for dom elements, given a node type string,
@@ -170,21 +179,6 @@
    (element-type ns name nil))
   ([ns name options]
    (SimpleElementType. ns (string/lower-case name) options)))
-
-;; Note custom elements can also be created via ElementType, but this
-;; is for creation via a constructor function which is more convenient
-;; in some situations.
-;; FIXME: ..can't be edomus compatible.
-#_(defrecord ^:no-doc CustomElementType
-  [ctor args]
-  IElementType
-  (create-element-type-node [this document]
-    (ctor args)))
-
-#_(defn custom-element-type
-  "Returns a velement type for a custom constructor function and optional arguments."
-  [ctor & args]
-  (CustomElementType. ctor args))
 
 (defprotocol IIndirectionType
   (expand-indirection [this props] "Returns a different velement object, that this type and properties stand for."))
