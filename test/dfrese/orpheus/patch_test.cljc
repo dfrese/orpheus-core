@@ -1,21 +1,26 @@
 (ns dfrese.orpheus.patch-test
-  (:require [cljs.test :refer-macros [deftest is testing]]
-            [dfrese.orpheus.patch :as patch]
+  (:require [dfrese.orpheus.patch :as patch]
+            [dfrese.edomus.core :as dom]
+            #?@(:cljs [[cljs.test :refer-macros [deftest is testing]]
+                       [dfrese.edomus.browser :as dom-impl]])
+            #?@(:clj [[clojure.test :refer [deftest is testing]]
+                      [dfrese.edomus.virtual :as dom-impl]])
             [dfrese.orpheus.lift :as lift]
             [dfrese.orpheus.html :as html]
             [dfrese.orpheus.core :as core :include-macros true]))
 
-(defn cleanup! []
-  (let [b (.-body js/document)]
-    (doseq [c (vec (array-seq (.-childNodes b)))]
-      (.removeChild b c))
-    (doseq [a (vec (array-seq (.-attributes b)))]
-      (.removeAttribute b a))))
+(defn document []
+  #?(:clj (dom-impl/new-document))
+  #?(:cljs (let [b (.-body js/document)]
+             (doseq [c (vec (array-seq (.-childNodes b)))]
+               (.removeChild b c))
+             (doseq [a (vec (array-seq (.-attributes b)))]
+               (.removeAttribute b a))
+             dom-impl/document)))
 
 (defn prepare! []
-  (cleanup!)
-  (let [e (.-body js/document)]
-    (.appendChild e (.createElement js/document "div"))
+  (let [doc (document)
+        e (dom/create-element doc "div")]
     [e (lift/lift-properties e)]))
 
 (defn patch-properties! [node state props & [options]]
@@ -25,9 +30,15 @@
   (testing "it patches simple properties"
     (let [[node state] (prepare!)
           e {"className" "test"}]
-      (is (not= "test" (aget node "className")))
+      (is (not= "test" (dom/get-property node "className")))
       (patch-properties! node state e)
-      (is (= "test" (aget node "className"))))))
+      (is (= "test" (dom/get-property node "className"))))))
+
+(defn f-child [e]
+  (first (dom/child-nodes e)))
+
+(defn ff-child [e]
+  (first (dom/child-nodes (first (dom/child-nodes e)))))
 
 (deftest patch-properties!-children-test
   (testing "it creates and patches children"
@@ -35,27 +46,26 @@
           e (html/div {}
                       (html/span {}))
           state (patch-properties! node state {"childNodes" [e]})]
-      (is (= "SPAN" (.-nodeName (.-firstChild (.-firstChild node)))))
+      (is (= "SPAN" (dom/element-name (ff-child node))))
       (let [state (patch-properties! node state
                                      {"childNodes" [(html/div {}
                                                               (html/p {}))]})]
-        (is (= "P" (.-nodeName (.-firstChild (.-firstChild node))))))))
+        (is (= "P" (dom/element-name (ff-child node)))))))
   (testing "it adds and removes children"
     (let [[node state] (prepare!)
           e #(hash-map "childNodes" (vector (apply html/div (repeat % (html/span {})))))]
       (let [state (patch-properties! node state (e 3))]
-        (is (= 3 (.-length (.-childNodes (.-firstChild node)))))
+        (is (= 3 (count (dom/child-nodes (f-child node)))))
         (patch-properties! node state (e 0))
-        (is (= 0 (.-length (.-childNodes (.-firstChild node))))))))
+        (is (= 0 (count (dom/child-nodes (f-child node))))))))
   (testing "reused dom nodes if it can"
     (let [[node state] (prepare!)
           state (patch-properties! node state
                                    {"childNodes" [(html/div {}
                                                             (html/span {} "abc"))]})]
       (let [nodes #(vector
-                    (.-firstChild node)                ;; 'div'
-                    (.-firstChild (.-firstChild node)) ;; 'span'
-                    ;;(.-firstChild (.-firstChild (.-firstChild node))) ;; txt
+                    (f-child node)  ;; 'div'
+                    (ff-child node) ;; 'span'
                     )
             before (nodes)]
         (patch-properties! node state
@@ -66,7 +76,8 @@
 (deftest patch-styles-test
   (testing "it patches style maps"
     (let [[node state] (prepare!)
-          test #(.getPropertyValue (.-style (.-firstChild node)) "background-color")]
+          test #(when-let [e (f-child node)]
+                  (dom/get-style e "background-color"))]
       (is (not= "red" (test)))
       ;; once
       (let [state (patch-properties! node state {"childNodes" [(html/div {"style" {"background-color" "red"
@@ -79,9 +90,9 @@
 (deftest patch-attributes-test
   (testing "it patches attribute maps"
     (let [[node state] (prepare!)
-          test #(.-value (.getNamedItem (.-attributes (.-firstChild node)) "data-id"))]
+          test #(dom/get-attribute (f-child node) "data-id")]
       ;; once
-      (let [style (patch-properties! node state {"childNodes" [(html/div {"attributes" {"data-id" "red"}})]})]
+      (let [state (patch-properties! node state {"childNodes" [(html/div {"attributes" {"data-id" "red"}})]})]
         (is (= "red" (test)))
         ;; and again
         (patch-properties! node state {"childNodes" [(html/div {"attributes" {"data-id" "blue"}})]})
@@ -95,7 +106,7 @@
         mk (fn [n]
              {"childNodes" [(apply html/div {} (map my-comp (range n)))]})
         getn (fn [node]
-               (.-length (.-childNodes (.-firstChild node))))
+               (count (dom/child-nodes (f-child node))))
         state (patch-properties! node state (mk 3))]
     (is (= 3 (getn node)))
     (let [state (patch-properties! node state (mk 10))]
@@ -103,7 +114,7 @@
       (let [state (patch-properties! node state (mk 3))]
         (is (= 3 (getn node)))))))
 
-(deftest patch-with-context-test
+#?(:cljs (deftest patch-with-context-test
   (let [[node state] (prepare!)
         ev (atom nil)
         state (patch-properties! node state {})]
@@ -136,4 +147,4 @@
                           (new js/Event "click"))
           (is (= @ev :baz))
           
-          )))))
+          ))))))

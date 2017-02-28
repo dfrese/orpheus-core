@@ -1,8 +1,7 @@
 (ns dfrese.orpheus.lift
   "Read a real dom structure into a virtual dom tree."
   (:require [dfrese.orpheus.core :as core]
-            [dfrese.edomus.core :as dom]
-            [dfrese.edomus.browser :as dom-browser]))
+            [dfrese.edomus.core :as dom]))
 
 (declare lift-properties)
 
@@ -28,8 +27,7 @@
 
 (defn lift-properties "TODO" [element]
   ;; TODO: try to lift more? for now the basic structure of nodes is helpful already
-  (dom-browser/execute
-   (fn [] (let [lifted (lift-children element (dom/child-nodes element))]
-            ;; Note: lift-children may modify the dom, removing some children.
-            (assert (= (count lifted) (count (dom/child-nodes element))))
-            {"childNodes" (vec lifted)}))))
+  (let [lifted (lift-children element (dom/child-nodes element))]
+    ;; Note: lift-children may modify the dom, removing some children.
+    (assert (= (count lifted) (count (dom/child-nodes element))))
+    {"childNodes" (vec lifted)}))

@@ -3,7 +3,8 @@
   (:require [dfrese.orpheus.core :as core]
             [dfrese.orpheus.patch.base :as base]
             [dfrese.edomus.core :as dom]
-            [dfrese.edomus.browser :as dom-browser]))
+            ;; Load the type extensions that enable to pass ordinary native DOM elements in cljs:
+            #?(:cljs [dfrese.edomus.browser])))
 
 ;; TODO: fix doc
 (defn patch-properties!
@@ -16,8 +17,8 @@
   ;; TODO: make state the first arg?
   (assert (map? props) (str "Properties to patch must be a map of properties to their values, not: " (pr-str props)))
   (let [props (core/normalize-props props)]
-    (dom-browser/execute #(base/patch-properties! element
-                                                  state props
-                                                  (dom/element-owner-document element)
-                                                  options))
+    (base/patch-properties! element
+                            state props
+                            (dom/element-owner-document element)
+                            options)
     props))
