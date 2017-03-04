@@ -90,14 +90,14 @@
         document nil] 
     (case name
       "childNodes" (do ;; we actually need to do both - TODO explain why
-                     ;; TODO: add a clear-children to dom
+                     ;; TODO: add a clear-children to dom?
                      (doseq [c (dom/child-nodes element)]
                        (dom/remove-child! element c))
                      (init-property! element "childNodes" [] document options))
       ;; FIXME: also remove all present styles, attributes, classList ?
       (init-property! element name nil document options))))
 
-(defn patch-properties! "TODO" [element old-props new-props document options]
+(defn ^:no-doc patch-properties! [element old-props new-props document options]
   (util/patch-map nil
                   old-props
                   new-props
@@ -106,8 +106,6 @@
                   #(patch-property! element %2 %3 %4 document options)))
 
 ;; children
-
-(defn- to-text [v] (str v)) ;; for everything but the VElements in children
 
 (defn ^:no-doc set-props! ;; need not be async..
   [element props document options]
@@ -141,8 +139,12 @@
           (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {}))))
       (core/with-context-update? vdom)
       (recur (:content vdom) ((:update-options vdom) options))
+
+      (string? vdom) ;; calling str would hide a lot of errors; and the user should explicitly do it.
+      (dom/create-text-node document vdom)
+      
       :else
-      (dom/create-text-node document (to-text vdom)))))
+      (throw (ex-info (str "Unsupported vdom element: " (pr-str vdom) ".") {:value vdom})))))
 
 ;; ----
 
@@ -184,18 +186,23 @@
 
       (core/with-context-update? old-vdom)
       (do
+        ;; TODO: keep abstraction...
         (assert (core/with-context-update? new-vdom))
         (assert (= (:update-options old-vdom) (:update-options new-vdom)))
         (recur (:content old-vdom) (:content new-vdom)
                ((:update-options new-vdom) options)))
       
-      :else
+      (string? old-vdom)
       ;; update text of a textnode to new-vdom (a string or anything else)
       (do
+        (assert (string? new-vdom))
         (when-not (dom/text-node? node)
           (throw (ex-info (str "Actual node is not a text node, where the previous vdom is: " (pr-str old-vdom) ", " node ".") {})))
-        (dom/set-text-node-value! node (to-text new-vdom))
-        nil))))
+        (dom/set-text-node-value! node new-vdom)
+        nil)
+      
+      :else
+      (throw (ex-info (str "Unsupported vdom element: " (pr-str old-vdom) ".") {:value old-vdom})))))
 
 (defn ^:no-doc remove-child! [options element node vdom]
   (when (and (core/velement? vdom)
@@ -211,22 +218,23 @@
   (let [node (create-child document vdom options)]
     (dom/append-child! element node)))
 
-(defn ^:no-doc similar-velement?
-  [e1 e2]
-  (= (core/ve-type e1) (core/ve-type e2)))
-
 (defn ^:no-doc similar-vdom?
   "Aka 'updateable' element"
   [vdom1 vdom2]
   (cond
     (core/velement? vdom1)
     (and (core/velement? vdom2)
-         (similar-velement? vdom1 vdom2))
+         (= (core/ve-type vdom1) (core/ve-type vdom2)))
+
     (core/with-context-update? vdom1)
     (and (core/with-context-update? vdom2)
+         ;; if the context-change changes, we recreate the tree (it might be bound in event-handlers)
          (= (:update-options vdom1) (:update-options vdom2)))
+
+    (string? vdom1) (string? vdom2)
+    
     :else
-    (not (core/velement? vdom2))))
+    (throw (ex-info (str "Unsupported vdom element: " (pr-str vdom1) ".") {:value vdom1}))))
 
 (def indices
   (let [N 1000
@@ -236,14 +244,21 @@
         (subvec reservoir 0 n)
         (vec (range n))))))
 
+(defn- node-name [node]
+  ;; TODO -> edomus?
+  #?(:clj node)
+  #?(:cljs (.-nodeName node)))
+
 (defn ^:no-doc patch-children! [element old-vdoms new-vdoms document options]
   (if (identical? old-vdoms new-vdoms) ;; ..cheap shortcut
     nil
     (let [nodes (dom/child-nodes element)
           olds (util/vec?! old-vdoms)
           news (util/vec?! new-vdoms)]
+      
       (when (not= (count nodes) (count olds))
-        (throw (ex-info (str "Actual dom child nodes do not match the number of vdom elements: " (pr-str olds) ", " nodes ".") {})))
+        (throw (ex-info (str "Actual dom child nodes do not match the number of vdom elements: " (pr-str olds) " /= "
+                             (pr-str (map node-name nodes)) ".") {})))
       (util/diff-patch nil
                        (indices (count olds))
                        (indices (count news))
