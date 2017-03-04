@@ -141,7 +141,7 @@
           :else
           (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {}))))
       (core/with-context-update? vdom)
-      (recur (:content vdom) (apply (:update-options vdom) options))
+      (recur (:content vdom) ((:update-options vdom) options))
       :else
       (dom/create-text-node document (to-text vdom)))))
 
@@ -190,7 +190,7 @@
         (assert (core/with-context-update? new-vdom))
         (assert (= (:update-options old-vdom) (:update-options new-vdom)))
         (recur (:content old-vdom) (:content new-vdom)
-               (apply (:update-options new-vdom) options)))
+               ((:update-options new-vdom) options)))
       
       :else
       ;; update text of a textnode to new-vdom (a string or anything else)

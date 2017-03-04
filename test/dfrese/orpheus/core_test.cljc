@@ -41,3 +41,14 @@
 
   (is (= (core/h "div" "Hello" "World")
          (core/expand-fnc (testf2 "Hello" "World")))))
+
+(deftest translate-test
+  (let [t (core/translate :element inc)]
+    (is (= (core/translate :element inc)
+           t))
+    (is (core/with-context-update? t))
+    (is (some? (:update-options t)))
+    (let [res (atom 0)]
+      ((:dispatch! ((:update-options t) {:dispatch! #(reset! res %)}))
+       42)
+      (is (= 43 @res)))))

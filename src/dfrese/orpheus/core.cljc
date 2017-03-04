@@ -27,16 +27,21 @@
 (defn with-context-update? [v]
   (instance? WithContextUpdate v))
 
-(defn- mupd [f args options]
-  (apply f (concat args [options])))
+(defn- dispatch [f args msg]
+  (apply f msg args))
+
+(defn- update-dispatcher [[f args] options]
+  (update options :dispatch!
+          (fn [dp]
+            (f/comp dp (f/partial dispatch f args)))))
 
 (defn translate
   "Translate all messages sent by `element`, by piping them through `f`, which may return nil to skip the message."
   ([element f]
-   (with-context-update element f))
+   (with-context-update element (f/partial update-dispatcher [f nil])))
   ([element f & args]
-   (with-context-update (f/partial mupd f args)
-     element)))
+   (with-context-update element
+     (f/partial update (f/partial update-dispatcher [f args])))))
 
 (defn with-context [content options]
   (with-context-update content (f/constantly options)))
