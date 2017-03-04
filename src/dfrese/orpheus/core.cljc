@@ -123,15 +123,7 @@
                         ;; childNodes as a vector greatly helps patching.
                         (not-empty children) (assoc "childNodes" (vec children))))))))
 
-(defprotocol ^:no-doc
-  IElementType
-  (create-element-node [this document] "Create the element node, with edomus functions.")
-  (element-node-was-created! [this element] "The element node was created and its properties are set, in an edomus context.")
-  (element-node-will-be-updated! [this element old-props new-props] "The element node is about to be updated.")
-  (element-node-was-updated! [this element props] "The element node was updated with new properties, in an edomus context.")
-  (element-node-will-be-removed! [this element] "The element node is about to be removed from the dom, in an edomus context."))
-
-(defrecord ^:no-doc SimpleElementType
+(defrecord ^:no-doc ElementType
   [ns name options]
   #?@(:cljs [IFn
              (-invoke [this & args] (apply h this args))])
@@ -158,23 +150,15 @@
             (invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19] (h this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19))
             (invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20] (h this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20))
             (invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20 a21] (h this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20 a21))
-            (applyTo [this args] (apply h this args))])
-  ;; TODO: optimize options lookups (they are fixed)
-  IElementType
-  (create-element-node [this document]
-    (dom/create-element-ns document ns name {:is (:is options)}))
-  (element-node-was-created! [this element]
-    (when-let [f (:node-was-created! options)]
-      (f element)))
-  (element-node-will-be-updated! [this element old-props new-props]
-    (when-let [f (:node-will-be-updated! options)]
-      (f element old-props new-props)))
-  (element-node-was-updated! [this element props]
-    (when-let [f (:node-was-updated! options)]
-      (f element props)))
-  (element-node-will-be-removed! [this element]
-    (when-let [f (:node-will-be-removed! options)]
-      (f element))))
+            (applyTo [this args] (apply h this args))]))
+
+(defn element-type?
+  "Return if v is an ElementType."
+  [v]
+  (instance? ElementType v))
+
+(defn create-element-node [document type]
+  (dom/create-element-ns document (:ns type) (:name type) (:options type)))
 
 (defn element-type
   "Returns a velement type for dom elements, given a node type string,
@@ -183,39 +167,51 @@
   ([ns name]
    (element-type ns name nil))
   ([ns name options]
-   (SimpleElementType. ns (string/lower-case name) options)))
+   (ElementType. ns (string/lower-case name) options)))
 
-(defprotocol IIndirectionType
-  (expand-indirection [this props] "Returns a different velement object, that this type and properties stand for."))
-
-;; A foreign type could be something like a react component, which can
+;; A lead type could be something like a react component, which can
 ;; be integrated into the dom, but has special rules for construction
-;; and patching.
-(defprotocol IForeignType
+;; and may also participate in the patching, by using it as the type
+;; of a velement.
+(defprotocol ILeafType
   "A protocol for velement types with special node creation and update
   methods. There are no restrictions on the type of properties, which
   are directly taken from the argument to [[velement]]."
-  (foreign-type-create [this props options] "Create a dom node for this type and props.")
-  (foreign-type-patch! [this node old-props new-props options] "Update the dom node for new props of the same type.")
-  (foreign-type-destroy! [this node props options] "Clean up the dom node."))
+  (leaf-type-create [this props options] "Create a dom node for this type and props.")
+  (leaf-type-patch! [this node old-props new-props options] "Update the dom node for new props of the same type.")
+  (leaf-type-destroy! [this node props options] "Clean up the dom node."))
+
+(defn leaf-type?
+  "Returns if v is a ILeafType."
+  [v]
+  (satisfies? ILeafType v))
 
 ;; function type components:
 
-(defrecord ^:no-doc FunctionComponentType
-  [f]
-  IIndirectionType
-  (expand-indirection [this props]
-    (apply f props)))
+(defrecord ^:no-doc IndirectionType [f])
 
-(defn- function-type [f]
-  (FunctionComponentType. f))
+(defn indirection-type?
+  "Return if v is an IndirectionType."
+  [v]
+  (instance? IndirectionType v))
+
+(defn expand-indirection
+  "Returns a different velement object, that this type and properties stand for."
+  [this props]
+  (apply (:f this) props))
+
+(defn expand-fnc [c] ;; TODO: doc; only for testing/and recurse?
+  (expand-indirection (ve-type c) (ve-props c)))
+
+(defn- indirection-type [f]
+  (IndirectionType. f))
 
 (defn ^:no-doc function-ctor
   "Returns a function to elements for an argument list. To render such
   an element, `f` will be called with the arguments of the particular
   instance."
   [f]
-  (let [t (function-type f)]
+  (let [t (indirection-type f)]
     (fn [& args]
       (velement t args))))
 
@@ -228,6 +224,3 @@
         `(def ~name
            (cond-> (function-ctor (fn ~name ~bindings ~@body))
              ~docstring (vary-meta assoc :doc ~docstring)))))))
-
-(defn expand-fnc [c] ;; TODO: doc; only for testing.
-  (expand-indirection (ve-type c) (ve-props c)))

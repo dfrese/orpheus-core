@@ -124,19 +124,18 @@
       (let [type (core/ve-type vdom)
             props (core/ve-props vdom)]
         (cond
-          (satisfies? core/IElementType type)
-          (let [e (core/create-element-node type document)]
+          (core/element-type? type)
+          (let [e (core/create-element-node document type)]
             (set-props! e props document options)
-            (core/element-node-was-created! type e)
             ;; Note: and/or wait for the async success? ("mounted")
             e)
 
-          (satisfies? core/IIndirectionType type)
+          (core/indirection-type? type)
           (recur (core/expand-indirection type (core/ve-props vdom))
                  options)
 
-          (satisfies? core/IForeignType type)
-          (core/foreign-type-create type props options)
+          (core/leaf-type? type)
+          (core/leaf-type-create type props options)
 
           :else
           (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {}))))
@@ -163,23 +162,21 @@
             (throw (ex-info (str "Actual node is not an element, where the previous vdom is: " (pr-str old-vdom) ", " node ".") {})))
           (assert (= (core/ve-type old-vdom) (core/ve-type new-vdom))) ;; impl error
           (cond
-            (satisfies? core/IElementType type)
+            (core/element-type? type)
             (let [old-props (core/ve-props old-vdom)
                   new-props (core/ve-props new-vdom)]
-              (core/element-node-will-be-updated! type node old-props new-props)
               (patch-properties! node
                                  old-props new-props
                                  document
                                  options)
-              (core/element-node-was-updated! type node new-props)
               nil)
         
-            (satisfies? core/IIndirectionType type)
+            (core/indirection-type? type)
             (recur (core/expand-indirection type old-props) (core/expand-indirection type new-props)
                    options)
 
-            (satisfies? core/IForeignType type)
-            (do (core/foreign-type-patch! type node old-props new-props options)
+            (core/leaf-type? type)
+            (do (core/leaf-type-patch! type node old-props new-props options)
                 nil)
           
             :else
@@ -201,13 +198,9 @@
         nil))))
 
 (defn ^:no-doc remove-child! [options element node vdom]
-  (when-let [type (and (core/velement? vdom)
-                       (core/ve-type vdom))]
-    (cond
-      (satisfies? core/IElementType type)
-      (core/element-node-will-be-removed! type node)
-      (satisfies? core/IForeignType type)
-      (core/foreign-type-destroy! type node (core/ve-props vdom) options)))
+  (when (and (core/velement? vdom)
+             (core/leaf-type? (core/ve-type vdom)))
+    (core/leaf-type-destroy! (core/ve-type vdom) node (core/ve-props vdom) options))
   (dom/remove-child! element node))
 
 (defn ^:no-doc insert-child! [document options element vdom ref-node]
