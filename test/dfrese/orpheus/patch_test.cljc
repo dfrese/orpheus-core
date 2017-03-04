@@ -24,6 +24,9 @@
 (defn ff-child [e]
   (first (dom/child-nodes (first (dom/child-nodes e)))))
 
+(defn sf-child [e]
+  (second (dom/child-nodes (first (dom/child-nodes e)))))
+
 (deftest patch-properties!-children-test
   (testing "it creates and patches children"
     (let [[node state] (t/prepare!)
@@ -33,8 +36,16 @@
       (is (= "SPAN" (dom/element-name (ff-child node))))
       (let [state (patch-properties! node state
                                      {"childNodes" [(html/div {}
-                                                              (html/p {}))]})]
-        (is (= "P" (dom/element-name (ff-child node)))))))
+                                                              (html/p)
+                                                              (html/h1))]})]
+        (is (= "P" (dom/element-name (ff-child node))))
+        (is (= "H1" (dom/element-name (sf-child node))))
+        (let [state (patch-properties! node state
+                                       {"childNodes" [(html/div {}
+                                                                (html/h1)
+                                                                (html/p))]})]
+          (is (= "H1" (dom/element-name (ff-child node))))
+          (is (= "P" (dom/element-name (sf-child node))))))))
   (testing "it adds and removes children"
     (let [[node state] (t/prepare!)
           e #(hash-map "childNodes" (vector (apply html/div (repeat % (html/span {})))))]
