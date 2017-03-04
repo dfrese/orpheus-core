@@ -4,10 +4,12 @@
             [dfrese.orpheus.patch.util :as util]
             [dfrese.edomus.core :as dom]
             [dfrese.edomus.event :as dom-event]
-            [clojure.set :as set]))
+            [clojure.set :as set]
+            [clojure.string :as str]))
 
 (declare patch-children!)
 (declare patch-properties!)
+(declare init-children!)
 
 ;; properties
 
@@ -20,15 +22,17 @@
     nil))
 
 (defn ^:no-doc event-type? [s]
-  ;; TODO: optimize; probably quite slow.
-  (if-let [[_ name] (re-matches event-type-capture-re s)]
-    (dom-event/event-type name true)
-    (if-let [name (event-type-name? s)]
-      (dom-event/event-type name false)
-      nil)))
+  (if (and (> (count s) 2) ;; optimze a little with a quick preliminary test.
+           (= "on" (subs s 0 2)))
+    (if-let [[_ name] (re-matches event-type-capture-re s)]
+      (dom-event/event-type name true)
+      (if-let [name (event-type-name? s)]
+        (dom-event/event-type name false)
+        nil))
+    nil))
 
 (defn ^:no-doc set-simple-property! [element name value options]
-  (if-let [etype (and (or (nil? value) ;; nil for removal :-/ TODO: look at old-v if it's an handler instead
+  (if-let [etype (and (or (nil? value) ;; nil for removal :-/ TODO: look at old-v if it's an handler instead?
                           (ifn? value))
                       (event-type? name))]
     (do
@@ -50,6 +54,11 @@
                          #(dom/remove-style! element %2)
                          #(dom/set-style! element %2 %3)))
 
+(defn ^:no-doc init-style! [element v]
+  (reduce-kv #(dom/set-style! element %2 %3)
+             nil
+             v))
+
 (defn ^:no-doc patch-classes! [element old-v new-v]
   (let [o (set old-v) ;; should be sets already for optimal performance
         n (set new-v)]
@@ -58,10 +67,18 @@
     (doseq [c (set/difference n o)]
       (dom/add-class! element c))))
 
+(defn ^:no-doc init-classes! [element v]
+  (dom/set-classes! element v))
+
 (defn ^:no-doc patch-attributes! [element old-v new-v]
   (util/patch-map-simple nil old-v new-v
                          #(dom/remove-attribute! element %2)
                          #(dom/set-attribute! element %2 %3)))
+
+(defn ^:no-doc init-attributes! [element v]
+  (reduce-kv #(dom/set-attribute! element %2 %3)
+             nil
+             v))
 
 (defn ^:no-doc patch-property! [element name old-v new-v document options]
   (if (identical? old-v new-v) ;; doing a = is probably not worth it
@@ -76,12 +93,12 @@
         nil))))
 
 (defn ^:no-doc init-property! [element name value document options]
-  ;; TODO: optimize (we can act like the property has never been set before)
+  ;; Note: value can always be nil; mening to remove the property 'as much as possible'.
   (case name
-    "childNodes" (patch-children! element [] value document options)
-    "style" (patch-style! element {} value)
-    "attributes" (patch-attributes! element {} value)
-    "classList" (patch-classes! element #{} (set value))
+    "childNodes" (init-children! element value document options)
+    "style" (init-style! element value)
+    "attributes" (init-attributes! element value)
+    "classList" (init-classes! element (set value))
     (set-simple-property! element name value options)))
 
 (defn ^:no-doc remove-property! [element name]
@@ -94,7 +111,6 @@
                      (doseq [c (dom/child-nodes element)]
                        (dom/remove-child! element c))
                      (init-property! element "childNodes" [] document options))
-      ;; FIXME: also remove all present styles, attributes, classList ?
       (init-property! element name nil document options))))
 
 (defn ^:no-doc patch-properties! [element old-props new-props document options]
@@ -217,6 +233,10 @@
 (defn ^:no-doc append-child! [document options element vdom]
   (let [node (create-child document vdom options)]
     (dom/append-child! element node)))
+
+(defn ^:no-doc init-children! [element vdoms document options]
+  (doseq [c vdoms]
+    (dom/append-child! element (create-child document c options))))
 
 (defn ^:no-doc similar-vdom?
   "Aka 'updateable' element"
