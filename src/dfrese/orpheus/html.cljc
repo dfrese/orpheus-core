@@ -4,14 +4,16 @@
             #?(:clj [dfrese.orpheus.impl.util :refer (deftag)]))
   (:refer-clojure :exclude [time]))
 
-#?(:cljs
-   (defn target-value "Return the `target.value` of an event"
-     [^js/Event e]
-     (.-value (.-target e))))
+;; TODO: add js/Event to edomus
+(defn target-value
+  "Return the `target.value` of an event"
+  [e]
+  (.-value (.-target e)))
 
-#?(:cljs
-   (defn target-checked "Return the `target.checked` of an event." [^js/Event e]
-     (.-checked (.-target e))))
+(defn target-checked
+  "Return the `target.checked` of an event."
+  [e]
+  (.-checked (.-target e)))
 
 ;; TODO: keys, mouse positions/clicks?
 
