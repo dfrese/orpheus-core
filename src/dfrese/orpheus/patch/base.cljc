@@ -220,10 +220,13 @@
       :else
       (throw (ex-info (str "Unsupported vdom element: " (pr-str old-vdom) ".") {:value old-vdom})))))
 
-(defn ^:no-doc remove-child! [options element node vdom]
+(defn ^:no-doc destroy-node! [options node vdom]
   (when (and (core/velement? vdom)
              (core/leaf-type? (core/ve-type vdom)))
-    (core/leaf-type-destroy! (core/ve-type vdom) node (core/ve-props vdom) options))
+    (core/leaf-type-destroy! (core/ve-type vdom) node (core/ve-props vdom) options)))
+
+(defn ^:no-doc remove-child! [options element node vdom]
+  (destroy-node! options node vdom)
   (dom/remove-child! element node))
 
 (defn ^:no-doc insert-child! [document options element vdom ref-node]
@@ -242,6 +245,8 @@
   "Aka 'updateable' element"
   [vdom1 vdom2]
   (cond
+    (identical? vdom1 vdom2) true
+    
     (core/velement? vdom1)
     (and (core/velement? vdom2)
          (= (core/ve-type vdom1) (core/ve-type vdom2)))
@@ -273,24 +278,39 @@
   (if (identical? old-vdoms new-vdoms) ;; ..cheap shortcut
     nil
     (let [nodes (dom/child-nodes element)
-          olds (util/vec?! old-vdoms)
-          news (util/vec?! new-vdoms)]
+          olds (zipmap nodes old-vdoms)]
       
-      (when (not= (count nodes) (count olds))
-        (throw (ex-info (str "Actual dom child nodes do not match the number of vdom elements: " (pr-str olds) " /= "
+      (when (not= (count nodes) (count old-vdoms))
+        (throw (ex-info (str "Actual dom child nodes do not match the number of vdom elements: " (pr-str old-vdoms) " /= "
                              (pr-str (map node-name nodes)) ".") {})))
-      (util/diff-patch nil
-                       (indices (count olds))
-                       (indices (count news))
 
-                       ;; if true, alter-child! is used
-                       (fn similar-child? [old-i new-i] (similar-vdom? (nth olds old-i) (nth news new-i)))
-                       ;; if true, nothing is done
-                       (fn equal-child? [old-i new-i] (= (nth olds old-i) (nth news new-i)))
-
-                       (fn [_ new-i] (append-child! document options element (nth news new-i)))
-                       (fn [_ new-i old-i] (insert-child! document options element (nth news new-i) (nth nodes old-i)))
-                       (fn [_ old-i new-i] (alter-child! document options (nth nodes old-i) (nth olds old-i) (nth news new-i)))
-                       (fn [_ old-i] (remove-child! options element (nth nodes old-i) (nth olds old-i))))
-      (assert (= (count (dom/child-nodes element)) (count news)) (str "Internal error; new vdoms:" (pr-str news)))
+      (util/fold-diff-patch-keyed element
+                                  (fn append [element node]
+                                    (dom/append-child! element node)
+                                    element)
+                                  (fn remove [element node]
+                                    (dom/remove-child! element node)
+                                    element)
+                                  (fn patch [element node new-vdom]
+                                    (let [old-vdom (get olds node)]
+                                      (when (or (not (identical? old-vdom new-vdom))
+                                                (not= old-vdom new-vdom))
+                                        (alter-child! document options node old-vdom new-vdom)))
+                                    element)
+                                  nodes
+                                  new-vdoms
+                                  (fn patchable? [node new-vdom]
+                                    (similar-vdom? (get olds node) new-vdom))
+                                  (fn old-key [node]
+                                    (let [vdom (get olds node)]
+                                      (when (core/velement? vdom)
+                                        (core/ve-key vdom))))
+                                  (fn new-key [vdom]
+                                    (when (core/velement? vdom)
+                                      (core/ve-key vdom)))
+                                  (fn create [vdom]
+                                    (create-child document vdom options))
+                                  (fn destroy! [node]
+                                    (destroy-node! options node (get olds node))))
+      (assert (= (count (dom/child-nodes element)) (count new-vdoms)) (str "Internal error; new vdoms:" (pr-str new-vdoms)))
       nil)))

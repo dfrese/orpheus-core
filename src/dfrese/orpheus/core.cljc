@@ -3,7 +3,7 @@
             [dfrese.clj.functions :as f]
             [clojure.string :as string]))
 
-(defrecord ^:no-doc VElement [type props])
+(defrecord ^:no-doc VElement [type props key])
 
 (def ^{:doc "Returns the type of a velement."
        :arglists '([v])}
@@ -13,8 +13,23 @@
        :arglists '([v])}
   ve-props :props)
 
-(defn velement "Returns a velement given a velement type and a property map." [type props]
-  (VElement. type props))
+(def ^{:doc "Returns the key of a velement or nil."
+       :arglists '([v])}
+  ve-key :key)
+
+(defn velement
+  "Returns a velement given a velement type and a property map."
+  ([type props]
+   (VElement. type props nil))
+  ([type props key]
+   (VElement. type props key)))
+
+(defn keyed
+  "Adds a key to the given velement, which will guarantee that a node
+  created for it, is reused during patching within the same child
+  list."
+  [velement key]
+  (update velement :key key))
 
 (defn velement? "Returns true if `v` is a velement." [v]
   (instance? VElement v))

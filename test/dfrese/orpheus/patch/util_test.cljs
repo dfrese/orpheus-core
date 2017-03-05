@@ -18,102 +18,16 @@
                                       (+ o n)
                                       n))))))))
 
-(deftest diff-patch-test
-  (testing "it works as expected"
-    (let [mk (fn [v] (if (vector? v)
-                       (str (name (first v))
-                            (second v))
-                       (name v)))]
-      (is (= ["a" "b" "c" "d"]
-             (util/diff-patch ["c0" "x"]
-                              [[:c 0] :x]
-                              [:a :b :c :d]
-                              #(not= %1 :x)
-                              =
-                              (fn append [v k]
-                                ;;(println "append" v k)
-                                (vec (concat v [(mk k)])))
-                              (fn insert
-                                [v k ref]
-                                ;;(println "insert" v k ref)
-                                (vec (concat (take-while #(not= % (mk ref)) v)
-                                             (cons (mk k)
-                                                   (drop-while #(not= % (mk ref)) v)))))
-                              (fn update [v o n]
-                                ;;(println "update" v o n)
-                                (assert (= o [:c 0]))
-                                (vec (map (fn [k]
-                                            (if (= "c0" k) (mk n) (mk k)))
-                                          v)))
-                              (fn remove [v k]
-                                ;;(println "remove" v k)
-                                (assert (= k :x))
-                                (vec (filter #(not= % (mk k)) v)))))))))
-
-(deftest diff-patch-efficiency-test
-  (let [actions (fn [olds news]
-                  (util/diff-patch [] olds news
-                                   (fn similar? [a1 a2]
-                                     (= (first a1) (first a2)))
-                                   =
-                                   (fn append [res x]
-                                     (conj res [:append x]))
-                                   (fn insert [res x y]
-                                     (conj res [:insert x y]))
-                                   (fn update [res x y]
-                                     (conj res [:update x y]))
-                                   (fn remove [res x]
-                                     (conj res [:remove x]))))]
-    (testing "no change"
-      (is (= []
-             (actions [[:a] [:b] [:c]] [[:a] [:b] [:c]]))))
-    (testing "identical and similar elements"
-      (let [d1 [:div 1]
-            d2 [:div 2]]
-        (is (= [[:append d2]]
-               (actions [d1] [d1 d2])))
-        (is (= [[:insert d2 d1]]
-               (actions [d1] [d2 d1])))
-        (is (= [[:remove d2]]
-               (actions [d1 d2] [d1])))
-        (is (= [[:update d1 d2]]
-               (actions [d1] [d2])))))
-    ;; ---
-    (testing "insert first"
-      (is (= [[:insert [:c] [:a]]]
-             (actions [[:a] [:b]], [[:c] [:a] [:b]]))))
-    (testing "insert last"
-      (is (= [[:append [:c]]]
-             (actions [[:a] [:b]], [[:a] [:b] [:c]]))))
-    (testing "remove first"
-      (is (= [[:remove [:a]]]
-             (actions [[:a] [:b] [:c]], [[:b] [:c]]))))
-    (testing "remove last"
-      (is (= [[:remove [:c]]]
-             (actions [[:a] [:b] [:c]], [[:a] [:b]]))))
-    ;; ---
-    (testing "move from start to end"
-      (is (= [[:remove [:a]] [:append [:a]]]
-             (actions [[:a] [:b] [:c]], [[:b] [:c] [:a]]))))
-    (testing "move from end to start"
-      (is (= [[:insert [:c] [:a]] [:remove [:c]]] ;; ?? probably ok, because of identity of nodes? (TODO: doesn't insert do a move at the same time?)
-             (actions [[:a] [:b] [:c]], [[:c] [:a] [:b]]))))
-    (testing "reverse"
-      (is (= [[:insert [:c] [:a]] [:remove [:a]] [:remove [:c]] [:append [:a]]] ;; ?? probably ok, because of identity of nodes?
-             ;;[[:remove [:a]] [:update [:b] [:b]] [:remove [:c]] [:append [:a]]]
-             (actions [[:a] [:b] [:c]], [[:c] [:b] [:a]]))))
-    ;; sort, filter, activate?
-    ))
-
-(defrecord Node [name])
+(defrecord Node [src])
 
 (deftest fold-diff-patch-functionality-test
   ;; Note: patchability does not matter for functionality
-  (let [node #(Node. %) ;; 'simulates' difference between the lists of vnodes and resulting list of nodes.
-        node-name :name
+  (let [node #(Node. %) ;; Need identity, and 'simulates' difference between the lists of vnodes and resulting list of nodes.
+        node-name :src
         patch* (fn [olds news patchable?]
                  (let [nodes (map node olds)]
-                   (util/fold-diff-patch (fn append [res new] ;;(println "append" (map node-name res) new)
+                   (util/fold-diff-patch nodes
+                                         (fn append [res new] ;;(println "append" (map node-name res) new)
                                            (concat res [(node new)]))
                                          (fn remove [res old] ;;(println "remove" (map node-name res) (node-name old))
                                            (filter #(not (identical? %1 old))
@@ -121,7 +35,6 @@
                                          (fn patch [res old new] ;;(println "patch" (map node-name res) (node-name old) new)
                                            (map #(if (identical? old %1) (node new) %1)
                                                 res))
-                                         nodes
                                          nodes news
                                          patchable?)))
         patch-all (fn [olds news]
@@ -166,13 +79,13 @@
         node-name :name
         patch* (fn [olds news patchable?]
                  (let [nodes olds]
-                   (util/fold-diff-patch (fn append [res new]
+                   (util/fold-diff-patch []
+                                         (fn append [res new]
                                            (conj res [:append new]))
                                          (fn remove [res old]
                                            (conj res [:remove old]))
                                          (fn patch [res old new]
                                            (conj res [:patch old new]))
-                                         []
                                          nodes news
                                          patchable?)))
         patch-all (fn [olds news]
@@ -221,4 +134,86 @@
     ;; remove back
     (is (= {:patch 3 :remove 1} (counts (patch-all [:a :b :c :d] [:a :b :c]))))
     (is (= {:remove 4 :append 3} (counts (patch-none [:a :b :c :d] [:a :b :c])))))
+
+  ;; TODO
+  (comment
+    (testing "move from start to end"
+      (is (= [[:remove [:a]] [:append [:a]]]
+             (actions [[:a] [:b] [:c]], [[:b] [:c] [:a]]))))
+    (testing "move from end to start"
+      (is (= [[:insert [:c] [:a]] [:remove [:c]]] ;; ?? probably ok, because of identity of nodes? (TODO: doesn't insert do a move at the same time?)
+             (actions [[:a] [:b] [:c]], [[:c] [:a] [:b]]))))
+    (testing "reverse"
+      (is (= [[:insert [:c] [:a]] [:remove [:a]] [:remove [:c]] [:append [:a]]] ;; ?? probably ok, because of identity of nodes?
+             ;;[[:remove [:a]] [:update [:b] [:b]] [:remove [:c]] [:append [:a]]]
+             (actions [[:a] [:b] [:c]], [[:c] [:b] [:a]]))))
+    ;; sort, filter, activate?
+)
   )
+
+(def fold-diff-patch-keyed-test
+  (let [node (fn [src]
+               (assert (not (instance? Node src)) (pr-str src))
+               (Node. src))
+        vtype :type
+        vkey :key
+        node-src :src
+        v (fn [type props & [key]]
+            {:type type :props props :key key})
+
+        patch (fn [olds news]
+                (util/fold-diff-patch-keyed []
+                                            (fn append [res node]
+                                              (conj res [:append node]))
+                                            (fn remove [res node]
+                                              (conj res [:remove node]))
+                                            (fn patch [res old new]
+                                              (conj res [:patch old new]))
+                                            olds
+                                            news
+                                            (fn patchable? [old new]
+                                              (= (vtype (node-src old))
+                                                 (vtype new)))
+                                            (fn old-key [old]
+                                              (vkey (node-src old)))
+                                            (fn new-key [new]
+                                              (vkey new))
+                                            (fn create [v]
+                                              (assert (not (instance? Node v)) (pr-str v))
+                                              (node v))
+                                            (fn destroy! [node]
+                                              (assert (instance? Node v) (pr-str v))
+                                              nil)))]
+    (let [v1 (v :t1 "a" :k1)
+          nv1 (node v1)
+          v2 (v :t1 "b" :k1)
+
+          w1 (v :t1 "a" :w)
+          w2 (v :t1 "b" :w)
+          nw1 (node w1)
+          y1 (v :t1 "a" :y)
+          y2 (v :t1 "b" :y)
+          ny1 (node y1)
+
+          x1 (v :t1 "x")]
+      ;; patch keyed in place
+      (is (= [[:patch nv1 v2]]
+             (patch [nv1] [v2])))
+      ;; patch keyed in front
+      (is (= [[:patch nv1 v2] [:append (node x1)]]
+             (patch [nv1] [v2 x1])))
+      ;; patch keyed at back
+      (is (= [[:remove nv1] [:append (node x1)] [:append nv1] [:patch nv1 v2]]
+             (patch [nv1] [x1 v2])))
+      (is (identical? nv1 (second (nth (patch [nv1] [x1 v2]) 2)))) ;; not only, but same node.
+      ;; patch keyed two, flipped
+      (is (or (= [[:remove nw1] [:patch ny1 y2] [:append nw1] [:patch nw1 w2]]
+                 (patch [nw1 ny1] [y2 w2]))
+              (= [[:remove ny1] [:patch nw1 w2] [:append ny1] [:patch ny1 y2]]
+                 (patch [nw1 ny1] [y2 w2]))))
+      ;; more?
+      )))
+
+      #_(try 
+          (catch :default e
+            (println (.-stack e))))
