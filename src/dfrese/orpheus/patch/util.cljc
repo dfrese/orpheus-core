@@ -116,3 +116,73 @@
                              (remove o))))))
             
             ))))))
+
+(defn fold-diff-patch-l0 [append remove patch init olds news patchable?]
+  (loop [olds olds ;; TODO: apply seq pattern...?
+         news news
+         res init]
+    (cond
+      ;; stop if: news remain at at, or olds remained, and no olds backed up.
+      (or (empty? olds)
+          (empty? news))
+      (as-> res $
+        (reduce remove $ (reverse olds))
+        (reduce append $ news))
+
+      ;; patch if patchable
+      (patchable? (first olds) (first news))
+      (recur (rest olds)
+             (rest news)
+             (patch res (first olds) (first news)))
+
+      :else
+      ;; not patchable, remove old
+      (recur (rest olds)
+             news
+             (remove res (first olds)))
+      )))
+
+(def fold-diff-patch fold-diff-patch-l0)
+
+#_(defn fold-diff-patch-l1 [append remove patch init olds news patchable?]
+  (loop [olds olds ;; TODO: apply seq pattern...?
+         backup-olds []
+         news news
+         tail []
+         res init]
+    #_(println "backups:" "old" backup-olds "news" tail)
+    (cond
+      ;; stop if: news remain at at, or olds remained, and no olds backed up.
+      (or (and (empty? olds) (empty? backup-olds))
+          (empty? news))
+      (as-> res $
+        (reduce remove $ (reverse (concat 
+                                   olds
+                                   backup-olds)))
+        (reduce append $ tail)
+        (reduce append $ news))
+
+      ;; olds remain at end, remove all, in reverse order
+      #_(empty? news)
+      
+
+      ;; already comparent first new with all olds, none was patchable? append new, try backed up olds again with next.
+      (and (empty? olds) (not (empty? backup-olds)))
+      (recur backup-olds []
+             (rest news) (conj tail (first news))
+             res
+             #_(append res (first news)))
+
+      ;; patch if patchable
+      (patchable? (first olds) (first news))
+      (recur (rest olds) backup-olds
+             (rest news) tail
+             (patch res (first olds) (first news)))
+
+      :else
+      ;; not patchable, backup old (will then look at next old)
+      (recur (rest olds) (conj backup-olds (first olds))
+             news tail
+             res
+             #_(remove res (first olds)))
+      )))
