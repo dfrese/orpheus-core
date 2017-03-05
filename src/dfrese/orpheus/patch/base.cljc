@@ -225,18 +225,6 @@
              (core/leaf-type? (core/ve-type vdom)))
     (core/leaf-type-destroy! (core/ve-type vdom) node (core/ve-props vdom) options)))
 
-(defn ^:no-doc remove-child! [options element node vdom]
-  (destroy-node! options node vdom)
-  (dom/remove-child! element node))
-
-(defn ^:no-doc insert-child! [document options element vdom ref-node]
-  (let [node (create-child document vdom options)]
-    (dom/insert-before! element node ref-node)))
-
-(defn ^:no-doc append-child! [document options element vdom]
-  (let [node (create-child document vdom options)]
-    (dom/append-child! element node)))
-
 (defn ^:no-doc init-children! [element vdoms document options]
   (doseq [c vdoms]
     (dom/append-child! element (create-child document c options))))
@@ -274,6 +262,18 @@
   #?(:clj node)
   #?(:cljs (.-nodeName node)))
 
+(defn ^:no-doc remove-child [element node]
+  (dom/remove-child! element node)
+  element)
+
+(defn ^:no-doc append-child [element node]
+  (dom/append-child! element node)
+  element)
+
+(defn- ^:no-doc vdom-key [vdom]
+  (when (core/velement? vdom)
+    (core/ve-key vdom)))
+
 (defn ^:no-doc patch-children! [element old-vdoms new-vdoms document options]
   (if (identical? old-vdoms new-vdoms) ;; ..cheap shortcut
     nil
@@ -285,12 +285,8 @@
                              (pr-str (map node-name nodes)) ".") {})))
 
       (util/fold-diff-patch-keyed element
-                                  (fn append [element node]
-                                    (dom/append-child! element node)
-                                    element)
-                                  (fn remove [element node]
-                                    (dom/remove-child! element node)
-                                    element)
+                                  append-child
+                                  remove-child
                                   (fn patch [element node new-vdom]
                                     (let [old-vdom (get olds node)]
                                       (when (or (not (identical? old-vdom new-vdom))
@@ -303,11 +299,8 @@
                                     (similar-vdom? (get olds node) new-vdom))
                                   (fn old-key [node]
                                     (let [vdom (get olds node)]
-                                      (when (core/velement? vdom)
-                                        (core/ve-key vdom))))
-                                  (fn new-key [vdom]
-                                    (when (core/velement? vdom)
-                                      (core/ve-key vdom)))
+                                      (vdom-key vdom)))
+                                  vdom-key
                                   (fn create [vdom]
                                     (create-child document vdom options))
                                   (fn destroy! [node]
