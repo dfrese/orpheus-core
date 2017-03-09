@@ -65,7 +65,7 @@
 
 (defn fold-diff-patch-keyed [init append remove patch olds news patchable? old-key new-key create destroy! resurrect]
   ;; TODO: do we event have to do more for a focused elements? (not touching it at all?)
-  (let [reservoir (transient {})
+  (let [reservoir (transient (array-map))
         ;; when removing smth, put it in the reservoir; when appending try to take and patch smth from it.
         res (fold-diff-patch init
                              (fn append' [res new]
