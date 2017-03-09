@@ -6,15 +6,15 @@
   (if (identical? old new) ;; ..cheap shortcut
     v
     (as-> v $
-      (reduce-kv (fn [v name x]
+      (reduce-kv (fn patch-map-remove [v name x]
                    (let [n (get new name undef)]
                      (cond
-                       (= n undef) (dissoc v name)
+                       (identical? n undef) (dissoc v name)
                        ;; left up to caller if worth it?: (= n x)
                        :else (patch v name x n))))
                  $
                  old)
-      (reduce-kv (fn [v name x]
+      (reduce-kv (fn patch-map-add [v name x]
                    (if (contains? old name)
                      v ;; handled above
                      (assoc v name x)))
@@ -27,7 +27,7 @@
     (patch-map v old new
                dissoc
                assoc
-               (fn [v name o n]
+               (fn patch-map-simple-patch [v name o n]
                  (if (not= o n)
                    (assoc v name n)
                    v)))))
@@ -97,7 +97,7 @@
                              patch
                              olds
                              news
-                             (fn [old new]
+                             (fn patchable?' [old new]
                                (and (patchable? old new)
                                     ;; both with no keys is ok too
                                     (= (old-key old) (new-key new)))))]
