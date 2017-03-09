@@ -274,11 +274,14 @@
   (when (core/velement? vdom)
     (core/ve-key vdom)))
 
+(defn- vec!? [v]
+  (if (vector? v) v (vec v)))
+
 (defn ^:no-doc patch-children! [element old-vdoms new-vdoms document options]
   (if (identical? old-vdoms new-vdoms) ;; ..cheap shortcut
     nil
-    (let [nodes (dom/child-nodes element)
-          olds (zipmap nodes old-vdoms)]
+    (let [nodes (vec!? (dom/child-nodes element))
+          olds (vec!? old-vdoms)]
       
       (when (not= (count nodes) (count olds))
         (throw (ex-info (str "Actual dom child nodes do not match the number of vdom elements: " (pr-str old-vdoms) " /= "
@@ -286,28 +289,28 @@
 
       (util/fold-diff-patch-keyed element
                                   append-child
-                                  (fn [element node]
-                                    (remove-child element node))
-                                  (fn patch [element node new-vdom]
-                                    (let [old-vdom (get olds node)]
+                                  (fn [element nodei]
+                                    (remove-child element (nodes nodei)))
+                                  (fn patch [element nodei new-vdom]
+                                    (let [old-vdom (olds nodei)]
                                       (when (or (not (identical? old-vdom new-vdom))
                                                 #_(not= old-vdom new-vdom))
-                                        (alter-child! document options node old-vdom new-vdom)))
+                                        (alter-child! document options (nodes nodei) old-vdom new-vdom)))
                                     element)
-                                  nodes ;; (indices (count nodes))
+                                  (indices (count nodes))
                                   new-vdoms
-                                  (fn patchable? [node new-vdom]
-                                    (similar-vdom? (get olds node) new-vdom))
-                                  (fn old-key [node]
-                                    (let [vdom (get olds node)]
+                                  (fn patchable? [nodei new-vdom]
+                                    (similar-vdom? (olds nodei) new-vdom))
+                                  (fn old-key [nodei]
+                                    (let [vdom (olds nodei)]
                                       (vdom-key vdom)))
                                   vdom-key
                                   (fn create [vdom]
                                     (create-child document vdom options))
-                                  (fn destroy! [node]
-                                    (destroy-node! options node (get olds node)))
-                                  (fn resurrect [node]
-                                    node))
+                                  (fn destroy! [nodei]
+                                    (destroy-node! options (nodes nodei) (olds nodei)))
+                                  (fn resurrect [nodei]
+                                    (nodes nodei)))
 
       (assert (= (count (dom/child-nodes element)) (count new-vdoms)) (str "Internal error; new vdoms:" (pr-str new-vdoms)))
       nil)))
