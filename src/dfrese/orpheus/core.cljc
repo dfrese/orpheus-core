@@ -29,7 +29,7 @@
   created for it, is reused during patching within the same child
   list."
   [velement key]
-  (update velement :key key))
+  (assoc velement :key key))
 
 (defn velement? "Returns true if `v` is a velement." [v]
   (instance? VElement v))
