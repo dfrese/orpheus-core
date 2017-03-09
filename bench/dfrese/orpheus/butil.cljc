@@ -19,10 +19,10 @@
                (- en st)))))
 
 (defn bench [n f]
-  (f)
+  (f) ;; warm up
   (let [R 3
         times (mapv #(measure-time f)
-                    (range 1 R))
+                    (range 0 R))
         avg (average times)
         dig (average (map #(* 100 (/ (abs (- avg %))
                                      avg))

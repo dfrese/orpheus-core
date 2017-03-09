@@ -26,6 +26,7 @@
              :compiler {:output-to "target/bench.js"
                         :output-dir "target/bench"
                         :optimizations :advanced
+                        :elide-asserts true
                         :pseudo-names true
                         :main dfrese.orpheus.benchmarks}}
             }}

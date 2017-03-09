@@ -11,9 +11,9 @@
 (defn document []
   #?(:clj (dom-impl/new-document))
   #?(:cljs (let [b (.-body js/document)]
-             (doseq [c (vec (array-seq (.-childNodes b)))]
+             (doseq [c (reverse (vec (array-seq (.-childNodes b))))]
                (.removeChild b c))
-             (doseq [a (vec (array-seq (.-attributes b)))]
+             (doseq [a (array-seq (.-attributes b))]
                (.removeAttribute b a))
              dom-impl/document)))
 

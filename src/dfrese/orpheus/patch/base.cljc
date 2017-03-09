@@ -152,7 +152,7 @@
           (core/leaf-type-create type props options)
 
           :else
-          (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {}))))
+          (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {:type type}))))
       (core/with-context-update? vdom)
       (recur (:content vdom) ((:update-options vdom) options))
 
@@ -280,20 +280,21 @@
     (let [nodes (dom/child-nodes element)
           olds (zipmap nodes old-vdoms)]
       
-      (when (not= (count nodes) (count old-vdoms))
+      (when (not= (count nodes) (count olds))
         (throw (ex-info (str "Actual dom child nodes do not match the number of vdom elements: " (pr-str old-vdoms) " /= "
                              (pr-str (map node-name nodes)) ".") {})))
 
       (util/fold-diff-patch-keyed element
                                   append-child
-                                  remove-child
+                                  (fn [element node]
+                                    (remove-child element node))
                                   (fn patch [element node new-vdom]
                                     (let [old-vdom (get olds node)]
                                       (when (or (not (identical? old-vdom new-vdom))
-                                                (not= old-vdom new-vdom))
+                                                #_(not= old-vdom new-vdom))
                                         (alter-child! document options node old-vdom new-vdom)))
                                     element)
-                                  nodes
+                                  nodes ;; (indices (count nodes))
                                   new-vdoms
                                   (fn patchable? [node new-vdom]
                                     (similar-vdom? (get olds node) new-vdom))
@@ -304,6 +305,9 @@
                                   (fn create [vdom]
                                     (create-child document vdom options))
                                   (fn destroy! [node]
-                                    (destroy-node! options node (get olds node))))
+                                    (destroy-node! options node (get olds node)))
+                                  (fn resurrect [node]
+                                    node))
+
       (assert (= (count (dom/child-nodes element)) (count new-vdoms)) (str "Internal error; new vdoms:" (pr-str new-vdoms)))
       nil)))

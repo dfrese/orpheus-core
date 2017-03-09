@@ -32,6 +32,12 @@
                                          (fn remove [res old] ;;(println "remove" (map node-name res) (node-name old))
                                            (filter #(not (identical? %1 old))
                                                    res))
+                                         (fn cut [res olds]
+                                           ;; remove all at end...
+                                           (reduce (fn [res old]
+                                                     (filter #(not (identical? %1 old))
+                                                             res))
+                                                   res olds))
                                          (fn patch [res old new] ;;(println "patch" (map node-name res) (node-name old) new)
                                            (map #(if (identical? old %1) (node new) %1)
                                                 res))
@@ -84,6 +90,10 @@
                                            (conj res [:append new]))
                                          (fn remove [res old]
                                            (conj res [:remove old]))
+                                         (fn cut [res olds]
+                                           ;; remove all at end... ignore this here..
+                                           (reduce #(conj %1 [:remove %2])
+                                                   res olds))
                                          (fn patch [res old new]
                                            (conj res [:patch old new]))
                                          nodes news
@@ -183,7 +193,9 @@
                                               (node v))
                                             (fn destroy! [node]
                                               (assert (instance? Node v) (pr-str v))
-                                              nil)))]
+                                              nil)
+                                            (fn resurrect [node]
+                                              node)))]
     (let [v1 (v :t1 "a" :k1)
           nv1 (node v1)
           v2 (v :t1 "b" :k1)

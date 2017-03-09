@@ -38,16 +38,16 @@
     v
     (vec v)))
 
-(defn fold-diff-patch [init append remove patch olds news patchable?]
+(defn fold-diff-patch [init append remove cut patch olds news patchable?]
   (loop [olds olds ;; TODO: apply seq pattern...?
          news news
          res init]
     (cond
-      ;; stop if: news remain at at, or olds remained, and no olds backed up.
+      ;; stop if no news left (remove all olds), or olds remain (append all news):
       (or (empty? olds)
           (empty? news))
       (as-> res $
-        (reduce remove $ (reverse olds))
+        (cut $ olds)
         (reduce append $ news))
 
       ;; patch if patchable
@@ -57,36 +57,43 @@
              (patch res (first olds) (first news)))
 
       :else
-      ;; not patchable, remove old
+      ;; not patchable, remove old (TODO: unless it's 'precious', then insert new)
       (recur (rest olds)
              news
              (remove res (first olds)))
       )))
 
-(defn fold-diff-patch-keyed [init append remove patch olds news patchable? old-key new-key create destroy!]
-  ;; TODO: do we event have to more for a focused elements? (not touching it at all?)
+(defn fold-diff-patch-keyed [init append remove patch olds news patchable? old-key new-key create destroy! resurrect]
+  ;; TODO: do we event have to do more for a focused elements? (not touching it at all?)
   (let [reservoir (transient {})
         ;; when removing smth, put it in the reservoir; when appending try to take and patch smth from it.
         res (fold-diff-patch init
                              (fn append' [res new]
-                               (if-let [old (get reservoir (new-key new))]
-                                 (do
-                                   (dissoc! reservoir (new-key new))
-                                   ;; could still have same key, but not be patchable.
-                                   (if (patchable? old new)
-                                     (patch (append res old)
-                                            old new)
-                                     (append res (create new))))
-                                 (append res (create new))))
+                               (let [nkey (new-key new)]
+                                 (if-let [old (and nkey (get reservoir nkey))]
+                                   (do
+                                     (dissoc! reservoir nkey)
+                                     ;; could still have same key, but not be patchable.
+                                     (if (patchable? old new)
+                                       (patch (append res (resurrect old))
+                                              old new)
+                                       (append res (create new))))
+                                   (append res (create new)))))
                              (fn remove' [res old]
                                (if-let [k (old-key old)]
                                  (do
                                    ;; TODO: do smth when key already in reservoir
-                                   (assoc! reservoir (old-key old) old)
+                                   (assoc! reservoir k old)
                                    (remove res old))
                                  (let [res (remove res old)]
                                    (destroy! old)
                                    res)))
+                             (fn cut [res olds]
+                               ;; when cutting of remaining olds, we don't need to put it in the reservoir
+                               (let [res (reduce remove res (reverse olds))]
+                                 (doseq [o olds]
+                                   (destroy! o))
+                                 res))
                              patch
                              olds
                              news
