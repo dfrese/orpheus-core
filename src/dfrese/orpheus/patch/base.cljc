@@ -80,38 +80,41 @@
              nil
              v))
 
-(defn ^:no-doc patch-property! [element name old-v new-v document options]
+(defn ^:no-doc patch-property! [element n old-v new-v document options]
   (if (identical? old-v new-v) ;; doing a = is probably not worth it
     nil
-    (case name
-      "childNodes" (patch-children! element old-v new-v document options)
-      "style" (patch-style! element old-v new-v)
-      "attributes" (patch-attributes! element old-v new-v)
-      "classList" (patch-classes! element old-v new-v)
-      (if (not= old-v new-v) ;; need to because of IConvertible
-        (set-simple-property! element name new-v options)
-        nil))))
+    (let [n (name n)]
+      (case n
+        "childNodes" (patch-children! element old-v new-v document options)
+        "style" (patch-style! element old-v new-v)
+        "attributes" (patch-attributes! element old-v new-v)
+        "classList" (patch-classes! element old-v new-v)
+        (if (not= old-v new-v) ;; need to because of IConvertible
+          (set-simple-property! element n new-v options)
+          nil)))))
 
-(defn ^:no-doc init-property! [element name value document options]
+(defn ^:no-doc init-property! [element n value document options]
   ;; Note: value can always be nil; mening to remove the property 'as much as possible'.
-  (case name
-    "childNodes" (init-children! element value document options)
-    "style" (init-style! element value)
-    "attributes" (init-attributes! element value)
-    "classList" (init-classes! element (set value))
-    (set-simple-property! element name value options)))
+  (let [n (name n)]
+    (case n
+      "childNodes" (init-children! element value document options)
+      "style" (init-style! element value)
+      "attributes" (init-attributes! element value)
+      "classList" (init-classes! element (set value))
+      (set-simple-property! element n value options))))
 
-(defn ^:no-doc remove-property! [element name]
+(defn ^:no-doc remove-property! [element n]
   ;; to actively remove a property that was set before (in constrast to leaving it totally unchanged):
   (let [options nil ;; setting to nil should go without options
-        document nil] 
-    (case name
+        document nil
+        n (name n)] 
+    (case n
       "childNodes" (do ;; we actually need to do both - TODO explain why
                      ;; TODO: add a clear-children to dom?
                      (doseq [c (dom/child-nodes element)]
                        (dom/remove-child! element c))
                      (init-property! element "childNodes" [] document options))
-      (init-property! element name nil document options))))
+      (init-property! element n nil document options))))
 
 (defn ^:no-doc patch-properties! [element old-props new-props document options]
   (util/patch-map nil

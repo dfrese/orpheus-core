@@ -12,10 +12,10 @@
          (core/h "div" {"a" 42} "b")))
   (is (= (core/h "div" "test" "test" "test")
          (core/h "div" {"childNodes" (repeat 3 "test")})))
-  (is (vector? (get (core/ve-props (core/h "div" {"childNodes" (repeat 3 "test")}))
-                    "childNodes")))
-  (is (vector? (get (core/ve-props (apply core/h "div" (repeat 3 "test")))
-                    "childNodes"))))
+  (is (= 3 (count (get (core/ve-props (core/h "div" {"childNodes" (repeat 3 "test")}))
+                       "childNodes"))))
+  (is (= 3 (count (get (core/ve-props (apply core/h "div" (repeat 3 "test")))
+                       "childNodes")))))
 
 (deftest element-type-test
   (is (= (core/element-type "http://www.w3.org/1999/xhtml" "div")
