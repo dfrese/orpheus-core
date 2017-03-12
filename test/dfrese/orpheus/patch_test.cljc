@@ -8,7 +8,12 @@
             [dfrese.orpheus.core :as core :include-macros true]))
 
 (defn patch-properties! [node state props & [options]]
-  (patch/patch-properties! node state props options))
+  (patch/patch-properties! node state props options)
+  #_(try
+    (patch/patch-properties! node state props options)
+    (catch :default e
+      (println (.-stack e))
+      (throw e))))
 
 (deftest patch-properties!-test
   (testing "it patches simple properties"
@@ -158,3 +163,5 @@
       (.dispatchEvent (.-firstChild node)
                       (new js/Event "click"))
       (is (= @ev 43))))))
+
+;; TODO: test keyed.

@@ -2,6 +2,8 @@
   "Functions to apply a virtual dom to a real dom."
   (:require [dfrese.orpheus.core :as core]
             [dfrese.orpheus.patch.util :as util]
+            [dfrese.orpheus.patch.reservoirs :as r]
+            [dfrese.orpheus.patch.indices :as i]
             [dfrese.edomus.core :as dom]
             [dfrese.edomus.event :as dom-event]
             [clojure.set :as set]
@@ -252,14 +254,6 @@
     :else
     (throw (ex-info (str "Unsupported vdom element: " (pr-str vdom1) ".") {:value vdom1}))))
 
-(def indices
-  (let [N 1000
-        reservoir (vec (range N))]
-    (fn [n]
-      (if (<= n N)
-        (subvec reservoir 0 n)
-        (vec (range n))))))
-
 (defn- node-name [node]
   ;; TODO -> edomus?
   #?(:clj node)
@@ -277,43 +271,63 @@
   (when (core/velement? vdom)
     (core/ve-key vdom)))
 
+(defn- vdom-type [vdom]
+  (cond
+    (core/velement? vdom) (core/ve-type vdom)
+    (core/with-context-update? vdom) (:update-options vdom)
+    :else ::text))
+
 (defn- vec!? [v]
   (if (vector? v) v (vec v)))
+
+(defn ^:no-doc patch-children-v3 [element old-vdoms new-vdoms document options]
+  (let [nodes (vec!? (dom/child-nodes element))
+        olds (vec!? old-vdoms)
+        type-reservoir (r/type-reservoir-init (mapv vdom-type olds))]
+    (util/fold-diff-patch-keyed element
+                                append-child
+                                (fn remove-old [element nodei]
+                                  (remove-child element (nodes nodei)))
+                                (fn patch [element nodei new-vdom]
+                                  (let [old-vdom (olds nodei)]
+                                    (when (or (not (identical? old-vdom new-vdom))
+                                              #_(not= old-vdom new-vdom))
+                                      (alter-child! document options (nodes nodei) old-vdom new-vdom)))
+                                  element)
+                                (i/indices (count nodes))
+                                new-vdoms
+                                (fn patchable? [nodei new-vdom]
+                                  (similar-vdom? (olds nodei) new-vdom))
+                                (fn old-key [nodei]
+                                  (let [vdom (olds nodei)]
+                                    (vdom-key vdom)))
+                                vdom-key
+                                (fn create [vdom]
+                                  ;; Note: might be worth it to extend this on a 'most suitable' node?
+                                  (if-let [nodei (r/type-reservoir-pull! type-reservoir (vdom-type vdom))]
+                                    (let [node (nodes nodei)]
+                                      (alter-child! document options node (olds nodei) vdom)
+                                      node)
+                                    (create-child document vdom options)))
+                                (fn destroy! [nodei resurrectable?]
+                                  (if resurrectable?
+                                    (r/type-reservoir-push! type-reservoir nodei)
+                                    (destroy-node! options (nodes nodei) (olds nodei))))
+                                (fn resurrect [nodei]
+                                  (nodes nodei)))
+    (doseq [nodei (r/type-reservoir-seq type-reservoir)]
+      (destroy-node! options (nodes nodei) (olds nodei)))))
 
 (defn ^:no-doc patch-children! [element old-vdoms new-vdoms document options]
   (if (identical? old-vdoms new-vdoms) ;; ..cheap shortcut
     nil
-    (let [nodes (vec!? (dom/child-nodes element))
-          olds (vec!? old-vdoms)]
+    (let [olds (vec!? old-vdoms)]
       
-      (when (not= (count nodes) (count olds))
+      (when (not= (dom/child-nodes-count element) (count olds))
         (throw (ex-info (str "Actual dom child nodes do not match the number of vdom elements: " (pr-str old-vdoms) " /= "
-                             (pr-str (map node-name nodes)) ".") {})))
+                             (pr-str (map node-name (dom/child-nodes element))) ".") {})))
 
-      (util/fold-diff-patch-keyed element
-                                  append-child
-                                  (fn [element nodei]
-                                    (remove-child element (nodes nodei)))
-                                  (fn patch [element nodei new-vdom]
-                                    (let [old-vdom (olds nodei)]
-                                      (when (or (not (identical? old-vdom new-vdom))
-                                                #_(not= old-vdom new-vdom))
-                                        (alter-child! document options (nodes nodei) old-vdom new-vdom)))
-                                    element)
-                                  (indices (count nodes))
-                                  new-vdoms
-                                  (fn patchable? [nodei new-vdom]
-                                    (similar-vdom? (olds nodei) new-vdom))
-                                  (fn old-key [nodei]
-                                    (let [vdom (olds nodei)]
-                                      (vdom-key vdom)))
-                                  vdom-key
-                                  (fn create [vdom]
-                                    (create-child document vdom options))
-                                  (fn destroy! [nodei]
-                                    (destroy-node! options (nodes nodei) (olds nodei)))
-                                  (fn resurrect [nodei]
-                                    (nodes nodei)))
-
-      (assert (= (count (dom/child-nodes element)) (count new-vdoms)) (str "Internal error; new vdoms:" (pr-str new-vdoms)))
+      (patch-children-v3 element olds new-vdoms document options)
+      
+      (assert (= (dom/child-nodes-count element) (count new-vdoms)) (str "Internal error; new vdoms:" (pr-str new-vdoms)))
       nil)))

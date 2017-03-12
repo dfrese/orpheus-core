@@ -161,7 +161,7 @@
 )
   )
 
-(def fold-diff-patch-keyed-test
+(deftest fold-diff-patch-keyed-test
   (let [node (fn [src]
                (assert (not (instance? Node src)) (pr-str src))
                (Node. src))
