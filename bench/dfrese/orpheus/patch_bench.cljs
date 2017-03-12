@@ -19,10 +19,6 @@
   (let [[node state] (t/prepare!)]
     (render-seq state node s)))
 
-(defn print-calls []
-  (println @dfrese.orpheus.patch.base/_calls_)
-  (reset! dfrese.orpheus.patch.base/_calls_ {}))
-
 (defbench patch-random-bench
   (let [N 1000
 
