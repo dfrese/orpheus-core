@@ -237,7 +237,7 @@
     
     (core/velement? vdom1)
     (and (core/velement? vdom2)
-         (= (core/ve-type vdom1) (core/ve-type vdom2)))
+         (identical? (core/ve-type vdom1) (core/ve-type vdom2)))
 
     (core/with-context-update? vdom1)
     (and (core/with-context-update? vdom2)
