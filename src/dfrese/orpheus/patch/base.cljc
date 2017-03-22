@@ -170,60 +170,61 @@
 ;; ----
 
 (defn ^:no-doc alter-child! [document options node old-vdom new-vdom]
-  (loop [old-vdom old-vdom
-         new-vdom new-vdom
-         options options]
-    (cond
-      (core/velement? old-vdom)
-      ;; update an element of same type.
-      (do
-        (assert (core/velement? new-vdom))
-        (let [type (core/ve-type old-vdom)
-              old-props (core/ve-props old-vdom)
-              new-props (core/ve-props new-vdom)]
-          (when-not (dom/element? node)
-            (throw (ex-info (str "Actual node is not an element, where the previous vdom is: " (pr-str old-vdom) ", " node ".") {})))
-          (assert (= (core/ve-type old-vdom) (core/ve-type new-vdom))) ;; impl error
-          (cond
-            (core/element-type? type)
-            (let [old-props (core/ve-props old-vdom)
-                  new-props (core/ve-props new-vdom)]
-              (patch-properties! node
-                                 old-props new-props
-                                 document
-                                 options)
-              nil)
-        
-            (core/indirection-type? type)
-            (recur (core/expand-indirection type old-props) (core/expand-indirection type new-props)
-                   options)
-
-            (core/leaf-type? type)
-            (do (core/leaf-type-patch! type node old-props new-props options)
+  (when-not (identical? old-vdom new-vdom)
+    (loop [old-vdom old-vdom
+           new-vdom new-vdom
+           options options]
+      (cond
+        (core/velement? old-vdom)
+        ;; update an element of same type.
+        (do
+          (assert (core/velement? new-vdom))
+          (let [type (core/ve-type old-vdom)
+                old-props (core/ve-props old-vdom)
+                new-props (core/ve-props new-vdom)]
+            (when-not (dom/element? node)
+              (throw (ex-info (str "Actual node is not an element, where the previous vdom is: " (pr-str old-vdom) ", " node ".") {})))
+            (assert (= (core/ve-type old-vdom) (core/ve-type new-vdom))) ;; impl error
+            (cond
+              (core/element-type? type)
+              (let [old-props (core/ve-props old-vdom)
+                    new-props (core/ve-props new-vdom)]
+                (patch-properties! node
+                                   old-props new-props
+                                   document
+                                   options)
                 nil)
-          
-            :else
-            (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {})))))
+        
+              (core/indirection-type? type)
+              (recur (core/expand-indirection type old-props) (core/expand-indirection type new-props)
+                     options)
 
-      (core/with-context-update? old-vdom)
-      (do
-        ;; TODO: keep abstraction...
-        (assert (core/with-context-update? new-vdom))
-        (assert (= (:update-options old-vdom) (:update-options new-vdom)))
-        (recur (:content old-vdom) (:content new-vdom)
-               ((:update-options new-vdom) options)))
+              (core/leaf-type? type)
+              (do (core/leaf-type-patch! type node old-props new-props options)
+                  nil)
+          
+              :else
+              (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {})))))
+
+        (core/with-context-update? old-vdom)
+        (do
+          ;; TODO: keep abstraction...
+          (assert (core/with-context-update? new-vdom))
+          (assert (= (:update-options old-vdom) (:update-options new-vdom)))
+          (recur (:content old-vdom) (:content new-vdom)
+                 ((:update-options new-vdom) options)))
       
-      (string? old-vdom)
-      ;; update text of a textnode to new-vdom (a string or anything else)
-      (do
-        (assert (string? new-vdom))
-        (when-not (dom/text-node? node)
-          (throw (ex-info (str "Actual node is not a text node, where the previous vdom is: " (pr-str old-vdom) ", " node ".") {})))
-        (dom/set-text-node-value! node new-vdom)
-        nil)
+        (string? old-vdom)
+        ;; update text of a textnode to new-vdom (a string or anything else)
+        (do
+          (assert (string? new-vdom))
+          (when-not (dom/text-node? node)
+            (throw (ex-info (str "Actual node is not a text node, where the previous vdom is: " (pr-str old-vdom) ", " node ".") {})))
+          (dom/set-text-node-value! node new-vdom)
+          nil)
       
-      :else
-      (throw (ex-info (str "Unsupported vdom element: " (pr-str old-vdom) ".") {:value old-vdom})))))
+        :else
+        (throw (ex-info (str "Unsupported vdom element: " (pr-str old-vdom) ".") {:value old-vdom}))))))
 
 (defn ^:no-doc destroy-node! [options node vdom]
   (when (and (core/velement? vdom)
@@ -267,6 +268,10 @@
   (dom/append-child! element node)
   element)
 
+(defn ^:no-doc insert-child [element node before]
+  (dom/insert-before! element node before)
+  element)
+
 (defn- ^:no-doc vdom-key [vdom]
   (when (core/velement? vdom)
     (core/ve-key vdom)))
@@ -277,12 +282,9 @@
     (core/with-context-update? vdom) (:update-options vdom)
     :else ::text))
 
-(defn- vec!? [v]
-  (if (vector? v) v (vec v)))
-
 (defn ^:no-doc patch-children-v3 [element old-vdoms new-vdoms document options]
-  (let [nodes (vec!? (dom/child-nodes element))
-        olds (vec!? old-vdoms)
+  (let [nodes (util/vec!? (dom/child-nodes element))
+        olds (util/vec!? old-vdoms)
         type-reservoir (r/type-reservoir-init (mapv vdom-type olds))]
     (util/fold-diff-patch-keyed element
                                 append-child
@@ -290,9 +292,7 @@
                                   (remove-child element (nodes nodei)))
                                 (fn patch [element nodei new-vdom]
                                   (let [old-vdom (olds nodei)]
-                                    (when (or (not (identical? old-vdom new-vdom))
-                                              #_(not= old-vdom new-vdom))
-                                      (alter-child! document options (nodes nodei) old-vdom new-vdom)))
+                                    (alter-child! document options (nodes nodei) old-vdom new-vdom))
                                   element)
                                 (i/indices (count nodes))
                                 new-vdoms
@@ -318,16 +318,51 @@
     (doseq [nodei (r/type-reservoir-seq type-reservoir)]
       (destroy-node! options (nodes nodei) (olds nodei)))))
 
+(defn ^:no-doc patch-children-v1 [element old-vdoms new-vdoms document options]
+  (assert (vector? old-vdoms))
+  (let [olds old-vdoms
+        nodes (dom/child-nodes element)]
+    (util/fold-diff-patch-v1 element
+                             (fn append [element new]
+                               (append-child element (create-child document new options)))
+                             (fn remove [element idx]
+                               (let [node (nodes idx)
+                                     old (olds idx)
+                                     res (remove-child element node)]
+                                 (destroy-node! options node old)
+                                 res))
+                             (fn insert [element new before-idx]
+                               (let [before-node (nodes before-idx)]
+                                 (insert-child element (create-child document new options) before-node)))
+                             (fn patch [element idx new]
+                               (let [node (nodes idx)
+                                     old (olds idx)]
+                                 (alter-child! document options node old new))
+                               element)
+                             (i/indices (count olds))
+                             new-vdoms
+                             (fn patchable? [idx new]
+                               ;; Only patch, if keys are equal (or both have none), and types are patchable.
+                               ;; TODO: integrate key-check with similar-vdom? for optimization.
+                               (let [old (olds idx)]
+                                 (and (= (vdom-key old) (vdom-key new))
+                                      (similar-vdom? old new))))
+                             (fn precious? [idx]
+                               ;; try not to remove, if keyed (TODO or focused!?)
+                               (let [old (olds idx)]
+                                 (some? (vdom-key old)))))))
+
+
 (defn ^:no-doc patch-children! [element old-vdoms new-vdoms document options]
   (if (identical? old-vdoms new-vdoms) ;; ..cheap shortcut
     nil
-    (let [olds (vec!? old-vdoms)]
+    (let [olds (util/vec!? old-vdoms)]
       
       (when (not= (dom/child-nodes-count element) (count olds))
         (throw (ex-info (str "Actual dom child nodes do not match the number of vdom elements: " (pr-str old-vdoms) " /= "
                              (pr-str (map node-name (dom/child-nodes element))) ".") {})))
 
-      (patch-children-v3 element olds new-vdoms document options)
+      (patch-children-v1 element olds new-vdoms document options)
       
       (assert (= (dom/child-nodes-count element) (count new-vdoms)) (str "Internal error; new vdoms:" (pr-str new-vdoms)))
       nil)))

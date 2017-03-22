@@ -33,11 +33,41 @@
                    (assoc v name n)
                    v)))))
 
-(defn vec?! [v]
+(defn vec!? [v]
   ;; surprisingly, cljs does not do this??!!
   (if (vector? v)
     v
     (vec v)))
+
+(defn fold-diff-patch-v1 [init append remove insert patch olds news patchable? precious?]
+  (loop [olds olds
+         news news
+         res init]
+    (cond
+      ;; stop if no news left (remove all olds), or olds remain (append all news):
+      (or (empty? olds)
+          (empty? news))
+      (as-> res $
+        (reduce remove $ (reverse olds))
+        (reduce append $ news))
+
+      ;; patch if patchable
+      (patchable? (first olds) (first news))
+      (recur (rest olds)
+             (rest news)
+             (patch res (first olds) (first news)))
+
+      ;; keep old if it's worth it
+      (precious? (first olds))
+      (recur olds
+             (rest news)
+             (insert res (first news) (first olds)))
+
+      ;; otherwise, remove old.
+      :else
+      (recur (rest olds)
+             news
+             (remove res (first olds))))))
 
 (defn fold-diff-patch [init append remove cut patch olds news patchable?]
   (loop [olds olds ;; TODO: apply seq pattern...?

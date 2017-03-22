@@ -96,8 +96,9 @@
        (not (velement? arg0))))
 
 (defn ^:no-doc normalize-props [m]
+  m
   ;; Note: keeps string keys as the most efficient usage.
-  (reduce-kv (fn [m k v]
+  #_(reduce-kv (fn [m k v]
                ;; TODO: also look into style?!
                (cond-> m
                  (not (string? k))
