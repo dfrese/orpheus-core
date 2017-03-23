@@ -351,7 +351,7 @@
                                      old (aget olds idx)]
                                  (alter-child! document options node old new))
                                element)
-                             (i/indices (count olds))
+                             (count olds)
                              new-vdoms
                              (fn patchable? [idx new]
                                ;; Only patch, if keys are equal (or both have none), and types are patchable.

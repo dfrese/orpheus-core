@@ -7,11 +7,11 @@
   (if (identical? old new) ;; ..cheap shortcut
     v
     (as-> v $
+      ;; remove or patch what's in old.
       (reduce-kv (fn patch-map-remove [v name x]
                    (let [n (get new name undef)]
                      (cond
                        (identical? n undef) (dissoc v name)
-                       ;; left up to caller if worth it?: (= n x)
                        :else (patch v name x n))))
                  $
                  old)
@@ -39,35 +39,46 @@
     v
     (vec v)))
 
-(defn fold-diff-patch-v1 [init append remove insert patch olds news patchable? precious?]
-  (loop [olds (seq olds)
+;;(def _iterator #?(:cljs iter) #?(:clj iterator))
+
+(defn reduce-i
+  "= (reduce f init (range start end step))"
+  [f init start end step]
+  (if (= start end)
+    init
+    (recur f (f init start) (+ start step) end step)))
+
+(defn fold-diff-patch-v1 [init append remove insert patch old-cnt news patchable? precious?]
+  (loop [old-i 0
          news (seq news)
          res init]
-    (cond
+    (if (or (= old-i old-cnt)
+            (not news))
       ;; stop if no news left (remove all olds), or olds remain (append all news):
-      (or (not olds)
-          (not news))
       (as-> res $
-        (reduce remove $ (reverse olds))
+        (reduce-i remove $ (dec old-cnt) (dec old-i) -1)
         (reduce append $ news))
+      (let [folds old-i
+            fnews (first news)]
+        (cond
+          ;; patch if patchable
+          (patchable? folds fnews)
+          (recur (inc old-i)
+                 (next news)
+                 (patch res folds fnews))
 
-      ;; patch if patchable
-      (patchable? (first olds) (first news))
-      (recur (next olds)
-             (next news)
-             (patch res (first olds) (first news)))
+          ;; keep old if it's worth it
+          (precious? folds)
+          (recur old-i
+                 (next news)
+                 (insert res fnews folds))
 
-      ;; keep old if it's worth it
-      (precious? (first olds))
-      (recur olds
-             (next news)
-             (insert res (first news) (first olds)))
-
-      ;; otherwise, remove old.
-      :else
-      (recur (next olds)
-             news
-             (remove res (first olds))))))
+          ;; otherwise, remove old.
+          :else
+          (recur (inc old-i)
+                 news
+                 (remove res folds)))))
+    ))
 
 (defn fold-diff-patch [init append remove cut patch olds news patchable?]
   (loop [olds olds ;; TODO: apply seq pattern...?
