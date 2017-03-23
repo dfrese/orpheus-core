@@ -17,6 +17,10 @@
   #?(:cljs #(.-props %))
   #?(:clj :props))
 
+(defn set-ve-props [element v]
+  #?(:cljs (set! (.-props element) v))
+  #?(:clj (assoc element :props v)))
+
 (def ^{:doc "Returns the key of a velement or nil."
        :arglists '([v])}
   ve-key

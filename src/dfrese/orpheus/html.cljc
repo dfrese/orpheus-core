@@ -21,12 +21,12 @@
   (get (core/ve-props element) (name p)))
 
 (defn update-property [element p f & args]
-  (core/h (core/ve-type element)
-          (apply update (core/ve-props) f args)))
+  ;; TODO: look for (name p) too?
+  (core/set-ve-props element (apply update (core/ve-props element) p f args)))
 
 (defn set-property [element p v]
-  (core/h (core/ve-type element)
-          (assoc (core/ve-props) (name p) v)))
+  ;; TODO: (name p) or not?
+  (core/set-ve-props element (assoc (core/ve-props element) p v)))
 
 (def ^:no-doc html-ns "http://www.w3.org/1999/xhtml")
 
