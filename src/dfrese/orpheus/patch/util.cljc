@@ -40,32 +40,32 @@
     (vec v)))
 
 (defn fold-diff-patch-v1 [init append remove insert patch olds news patchable? precious?]
-  (loop [olds olds
-         news news
+  (loop [olds (seq olds)
+         news (seq news)
          res init]
     (cond
       ;; stop if no news left (remove all olds), or olds remain (append all news):
-      (or (empty? olds)
-          (empty? news))
+      (or (not olds)
+          (not news))
       (as-> res $
         (reduce remove $ (reverse olds))
         (reduce append $ news))
 
       ;; patch if patchable
       (patchable? (first olds) (first news))
-      (recur (rest olds)
-             (rest news)
+      (recur (next olds)
+             (next news)
              (patch res (first olds) (first news)))
 
       ;; keep old if it's worth it
       (precious? (first olds))
       (recur olds
-             (rest news)
+             (next news)
              (insert res (first news) (first olds)))
 
       ;; otherwise, remove old.
       :else
-      (recur (rest olds)
+      (recur (next olds)
              news
              (remove res (first olds))))))
 
