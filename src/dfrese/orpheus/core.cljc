@@ -7,15 +7,21 @@
 
 (def ^{:doc "Returns the type of a velement."
        :arglists '([v])}
-  ve-type :type)
+  ve-type
+  #?(:cljs #(.-type %))
+  #?(:clj :type))
 
 (def ^{:doc "Returns the properties of a velement."
        :arglists '([v])}
-  ve-props :props)
+  ve-props
+  #?(:cljs #(.-props %))
+  #?(:clj :props))
 
 (def ^{:doc "Returns the key of a velement or nil."
        :arglists '([v])}
-  ve-key :key)
+  ve-key
+  #?(:cljs #(.-key %))
+  #?(:clj :key))
 
 (defn velement
   "Returns a velement given a velement type and a property map."

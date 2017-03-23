@@ -54,7 +54,10 @@
 (defn ^:no-doc patch-style! [element old-v new-v]
   (util/patch-map-simple nil old-v new-v
                          #(dom/remove-style! element %2)
-                         #(dom/set-style! element %2 %3)))
+                         #(dom/set-style! element %2 %3)
+                         #_(fn [_ k o n]
+                             (when (not= o n)
+                               (dom/set-style! element k n)))))
 
 (defn ^:no-doc init-style! [element v]
   (reduce-kv #(dom/set-style! element %2 %3)
@@ -75,7 +78,10 @@
 (defn ^:no-doc patch-attributes! [element old-v new-v]
   (util/patch-map-simple nil old-v new-v
                          #(dom/remove-attribute! element %2)
-                         #(dom/set-attribute! element %2 %3)))
+                         #(dom/set-attribute! element %2 %3)
+                         #_(fn [_ k o n]
+                             (when (not= o n)
+                               (dom/set-attribute! element k n)))))
 
 (defn ^:no-doc init-attributes! [element v]
   (reduce-kv #(dom/set-attribute! element %2 %3)
@@ -112,9 +118,7 @@
         n (name n)] 
     (case n
       "childNodes" (do ;; we actually need to do both - TODO explain why
-                     ;; TODO: add a clear-children to dom?
-                     (doseq [c (dom/child-nodes element)]
-                       (dom/remove-child! element c))
+                     (dom/clear-child-nodes! element)
                      (init-property! element "childNodes" [] document options))
       (init-property! element n nil document options))))
 
@@ -318,25 +322,32 @@
     (doseq [nodei (r/type-reservoir-seq type-reservoir)]
       (destroy-node! options (nodes nodei) (olds nodei)))))
 
+(defn- child-nodes-array [element]
+  (let [n (dom/child-nodes-count element)
+        r (make-array n)]
+    (dotimes [i n]
+      (aset r i (dom/get-child element i)))
+    r))
+
 (defn ^:no-doc patch-children-v1 [element old-vdoms new-vdoms document options]
-  (assert (vector? old-vdoms))
-  (let [olds old-vdoms
-        nodes (dom/child-nodes element)]
+  (let [olds (to-array old-vdoms)
+        ;; Note: this nodes list must not change during the patch
+        nodes (child-nodes-array element)]
     (util/fold-diff-patch-v1 element
                              (fn append [element new]
                                (append-child element (create-child document new options)))
                              (fn remove [element idx]
-                               (let [node (nodes idx)
-                                     old (olds idx)
+                               (let [node (aget nodes idx)
+                                     old (aget olds idx)
                                      res (remove-child element node)]
                                  (destroy-node! options node old)
                                  res))
                              (fn insert [element new before-idx]
-                               (let [before-node (nodes before-idx)]
+                               (let [before-node (aget nodes before-idx)]
                                  (insert-child element (create-child document new options) before-node)))
                              (fn patch [element idx new]
-                               (let [node (nodes idx)
-                                     old (olds idx)]
+                               (let [node (aget nodes idx)
+                                     old (aget olds idx)]
                                  (alter-child! document options node old new))
                                element)
                              (i/indices (count olds))
@@ -344,25 +355,24 @@
                              (fn patchable? [idx new]
                                ;; Only patch, if keys are equal (or both have none), and types are patchable.
                                ;; TODO: integrate key-check with similar-vdom? for optimization.
-                               (let [old (olds idx)]
+                               (let [old (aget olds idx)]
                                  (and (= (vdom-key old) (vdom-key new))
                                       (similar-vdom? old new))))
                              (fn precious? [idx]
                                ;; try not to remove, if keyed (TODO or focused!?)
-                               (let [old (olds idx)]
+                               (let [old (aget olds idx)]
                                  (some? (vdom-key old)))))))
 
 
 (defn ^:no-doc patch-children! [element old-vdoms new-vdoms document options]
   (if (identical? old-vdoms new-vdoms) ;; ..cheap shortcut
     nil
-    (let [olds (util/vec!? old-vdoms)]
-      
-      (when (not= (dom/child-nodes-count element) (count olds))
-        (throw (ex-info (str "Actual dom child nodes do not match the number of vdom elements: " (pr-str old-vdoms) " /= "
-                             (pr-str (map node-name (dom/child-nodes element))) ".") {})))
+    (do
+      (assert (= (dom/child-nodes-count element) (count old-vdoms))
+              (str "Actual dom child nodes do not match the number of vdom elements: " (pr-str old-vdoms) " /= "
+                   (pr-str (map node-name (dom/child-nodes element))) "."))
 
-      (patch-children-v1 element olds new-vdoms document options)
+      (patch-children-v1 element old-vdoms new-vdoms document options)
       
       (assert (= (dom/child-nodes-count element) (count new-vdoms)) (str "Internal error; new vdoms:" (pr-str new-vdoms)))
       nil)))

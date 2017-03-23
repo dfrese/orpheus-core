@@ -6,6 +6,9 @@
             [dfrese.orpheus.html :as html]
             [dfrese.orpheus.test-utils :as t]))
 
+;; Note: run benchmarks in browser:
+;; doo.runner.run_BANG_()
+
 (defn random-props [n]
   (t/generate t/props n 92739872))
 
