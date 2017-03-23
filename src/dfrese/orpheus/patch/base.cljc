@@ -323,11 +323,12 @@
       (destroy-node! options (nodes nodei) (olds nodei)))))
 
 (defn- child-nodes-array [element]
-  (let [n (dom/child-nodes-count element)
-        r (make-array n)]
-    (dotimes [i n]
-      (aset r i (dom/get-child element i)))
-    r))
+  #?(:clj (to-array (dom/child-nodes element)))
+  #?(:cljs (let [n (dom/child-nodes-count element)
+                 r (make-array n)]
+             (dotimes [i n]
+               (aset r i (dom/get-child element i)))
+             r)))
 
 (defn ^:no-doc patch-children-v1 [element old-vdoms new-vdoms document options]
   (let [olds (to-array old-vdoms)
