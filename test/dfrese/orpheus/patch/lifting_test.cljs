@@ -1,7 +1,7 @@
-(ns dfrese.orpheus.lift-test
+(ns dfrese.orpheus.patch.lifting-test
   (:require [cljs.test :refer-macros [deftest is testing]]
             [dfrese.orpheus.core :as core]
-            [dfrese.orpheus.lift :as lift]
+            [dfrese.orpheus.patch.lifting :as lifting]
             [dfrese.orpheus.html :as html]))
 
 (deftest lift-test
@@ -9,7 +9,4 @@
     (let [node (doto (.createElement js/document "div")
                  (.appendChild (.createElement js/document "span")))]
       (is (= {"childNodes" [(html/span {"childNodes" []})]}
-             (try (lift/lift-properties node)
-         (catch :default e
-           (println (.-stack e))
-           (throw e))))))))
+             (lifting/lift-properties node))))))

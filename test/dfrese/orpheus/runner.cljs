@@ -5,7 +5,7 @@
             dfrese.orpheus.patch-test
             dfrese.orpheus.patch.util-test
             dfrese.orpheus.patch.base-test
-            dfrese.orpheus.lift-test
+            dfrese.orpheus.patch.lifting-test
             ))
 
 (doo-tests 'dfrese.orpheus.core-test
@@ -13,6 +13,6 @@
            'dfrese.orpheus.patch-test
            'dfrese.orpheus.patch.util-test
            'dfrese.orpheus.patch.base-test
-           'dfrese.orpheus.lift-test
+           'dfrese.orpheus.patch.lifting-test
            )
 

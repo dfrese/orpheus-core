@@ -14,7 +14,7 @@
 
 (defn render-seq [state node s]
   (reduce (fn [st vdom]
-            (patch/patch-properties! node st vdom))
+            (patch/patch! st node vdom))
           state
           s))
 

@@ -1,11 +1,11 @@
-(ns dfrese.orpheus.lift
+(ns dfrese.orpheus.patch.lifting
   "Read a real dom structure into a virtual dom tree."
   (:require [dfrese.orpheus.core :as core]
             [dfrese.edomus.core :as dom]))
 
 (declare lift-properties)
 
-(defn- lift-node [parent node]
+(defn lift-node [parent node]
   (cond
     (dom/element? node)
     ;; TODO pick up 'is' property into options if it's there.
@@ -20,7 +20,7 @@
       (dom/remove-child! parent node)
       nil)))
 
-(defn- lift-children [parent nodes]
+(defn lift-children [parent nodes]
   ;; Note: must be non-lazy
   (doall (remove nil?
                  (map (partial lift-node parent) nodes))))

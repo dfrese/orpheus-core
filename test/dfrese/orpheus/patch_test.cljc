@@ -7,10 +7,10 @@
             [dfrese.orpheus.html :as html]
             [dfrese.orpheus.core :as core :include-macros true]))
 
-(defn patch-properties! [node state props & [options]]
-  (patch/patch-properties! node state props options)
+(defn patch! [state node props & [options]]
+  (patch/patch! state node props options)
   #_(try
-    (patch/patch-properties! node state props options)
+    (patch/patch! state node props options)
     (catch :default e
       (println (.-stack e))
       (throw e))))
@@ -20,7 +20,7 @@
     (let [[node state] (t/prepare!)
           e {"className" "test"}]
       (is (not= "test" (dom/get-property node "className")))
-      (patch-properties! node state e)
+      (patch! state node e)
       (is (= "test" (dom/get-property node "className"))))))
 
 (defn f-child [e]
@@ -37,40 +37,40 @@
     (let [[node state] (t/prepare!)
           e (html/div {}
                       (html/span {}))
-          state (patch-properties! node state {"childNodes" [e]})]
+          state (patch! state node {"childNodes" [e]})]
       (is (= "SPAN" (dom/element-name (ff-child node))))
-      (let [state (patch-properties! node state
-                                     {"childNodes" [(html/div {}
-                                                              (html/p)
-                                                              (html/h1))]})]
+      (let [state (patch! state node
+                         {"childNodes" [(html/div {}
+                                                  (html/p)
+                                                  (html/h1))]})]
         (is (= "P" (dom/element-name (ff-child node))))
         (is (= "H1" (dom/element-name (sf-child node))))
-        (let [state (patch-properties! node state
-                                       {"childNodes" [(html/div {}
-                                                                (html/h1)
-                                                                (html/p))]})]
+        (let [state (patch! state node
+                            {"childNodes" [(html/div {}
+                                                     (html/h1)
+                                                     (html/p))]})]
           (is (= "H1" (dom/element-name (ff-child node))))
           (is (= "P" (dom/element-name (sf-child node))))))))
   (testing "it adds and removes children"
     (let [[node state] (t/prepare!)
           e #(hash-map "childNodes" (vector (apply html/div (repeat % (html/span {})))))]
-      (let [state (patch-properties! node state (e 3))]
+      (let [state (patch! state node (e 3))]
         (is (= 3 (count (dom/child-nodes (f-child node)))))
-        (patch-properties! node state (e 0))
+        (patch! state node (e 0))
         (is (= 0 (count (dom/child-nodes (f-child node))))))))
   (testing "reused dom nodes if it can"
     (let [[node state] (t/prepare!)
-          state (patch-properties! node state
-                                   {"childNodes" [(html/div {}
-                                                            (html/span {} "abc"))]})]
+          state (patch! state node
+                        {"childNodes" [(html/div {}
+                                                 (html/span {} "abc"))]})]
       (let [nodes #(vector
                     (f-child node)  ;; 'div'
                     (ff-child node) ;; 'span'
                     )
             before (nodes)]
-        (patch-properties! node state
-                           {"childNodes" [(html/div {}
-                                                    (html/span {} "def"))]})
+        (patch! state node
+                {"childNodes" [(html/div {}
+                                         (html/span {} "def"))]})
         (is (= before (nodes)))))))
 
 (deftest patch-styles-test
@@ -80,11 +80,11 @@
                   (dom/get-style e "background-color"))]
       (is (not= "red" (test)))
       ;; once
-      (let [state (patch-properties! node state {"childNodes" [(html/div {"style" {"background-color" "red"
-                                                                                   "padding-left" "12px"}})]})]
+      (let [state (patch! state node {"childNodes" [(html/div {"style" {"background-color" "red"
+                                                                        "padding-left" "12px"}})]})]
         (is (= "red" (test)))
         ;; and again
-        (patch-properties! node state {"childNodes" [(html/div {"style" {"background-color" "blue"}})]})
+        (patch! state node {"childNodes" [(html/div {"style" {"background-color" "blue"}})]})
         (is (= "blue" (test)))))))
 
 (deftest patch-attributes-test
@@ -92,10 +92,10 @@
     (let [[node state] (t/prepare!)
           test #(dom/get-attribute (f-child node) "data-id")]
       ;; once
-      (let [state (patch-properties! node state {"childNodes" [(html/div {"attributes" {"data-id" "red"}})]})]
+      (let [state (patch! state node {"childNodes" [(html/div {"attributes" {"data-id" "red"}})]})]
         (is (= "red" (test)))
         ;; and again
-        (patch-properties! node state {"childNodes" [(html/div {"attributes" {"data-id" "blue"}})]})
+        (patch! state node {"childNodes" [(html/div {"attributes" {"data-id" "blue"}})]})
         (is (= "blue" (test)))))))
 
 (deftest patch-indirect-types-test
@@ -107,61 +107,63 @@
              {"childNodes" [(apply html/div {} (map my-comp (range n)))]})
         getn (fn [node]
                (count (dom/child-nodes (f-child node))))
-        state (patch-properties! node state (mk 3))]
+        state (patch! state node (mk 3))]
     (is (= 3 (getn node)))
-    (let [state (patch-properties! node state (mk 10))]
+    (let [state (patch! state node (mk 10))]
       (is (= 10 (getn node)))
-      (let [state (patch-properties! node state (mk 3))]
+      (let [state (patch! state node (mk 3))]
         (is (= 3 (getn node)))))))
 
-#?(:cljs (deftest patch-with-context-test
-  (let [[node state] (t/prepare!)
-        ev (atom nil)
-        state (patch-properties! node state {})]
-    ;; basic
-    (let [state (patch-properties!
-                 node state
-                 {:childNodes [(core/with-context
-                                 (html/div {:onClick (constantly :test)})
-                                 {:dispatch! (fn [x] (reset! ev x))})]})]
-      (.dispatchEvent (.-firstChild node)
-                      (new js/Event "click"))
-      (is (= @ev :test))
+#?(:cljs
+   (deftest patch-with-context-test
+     (let [[node state] (t/prepare!)
+           ev (atom nil)
+           state (patch! state node {})]
+       ;; basic
+       (let [state (patch! state
+                           node
+                           {:childNodes [(core/with-context
+                                           (html/div {:onClick (constantly :test)})
+                                           {:dispatch! (fn [x] (reset! ev x))})]})]
+         (.dispatchEvent (.-firstChild node)
+                         (new js/Event "click"))
+         (is (= @ev :test))
 
-      ;; changing context
-      (let [state (patch-properties!
-                   node state
-                   {:childNodes [(core/with-context
-                                   (html/div {:onClick (constantly :test)})
-                                   {:dispatch! (fn [x] (reset! ev :foobar))})]})]
-        (.dispatchEvent (.-firstChild node)
-                        (new js/Event "click"))
-        (is (= @ev :foobar))
+         ;; changing context
+         (let [state (patch! state
+                             node
+                             {:childNodes [(core/with-context
+                                             (html/div {:onClick (constantly :test)})
+                                             {:dispatch! (fn [x] (reset! ev :foobar))})]})]
+           (.dispatchEvent (.-firstChild node)
+                           (new js/Event "click"))
+           (is (= @ev :foobar))
 
-        ;; back to default.
-        (let [state (patch-properties!
-                     node state
-                     {:childNodes [(html/div {:onClick (constantly :test)})]}
-                     {:dispatch! (fn [x] (reset! ev :baz))})]
-          (.dispatchEvent (.-firstChild node)
-                          (new js/Event "click"))
-          (is (= @ev :baz))
+           ;; back to default.
+           (let [state (patch! state
+                               node
+                               {:childNodes [(html/div {:onClick (constantly :test)})]}
+                               {:dispatch! (fn [x] (reset! ev :baz))})]
+             (.dispatchEvent (.-firstChild node)
+                             (new js/Event "click"))
+             (is (= @ev :baz))
           
-          ))))))
+             ))))))
 
-#?(:cljs (deftest patch-translate-test
-  (let [[node state] (t/prepare!)
-        ev (atom nil)
-        state (patch-properties! node state {})]
-    ;; basic
-    (let [state (patch-properties!
-                 node state
-                 {:childNodes [(core/translate
-                                (html/div {:onClick (constantly 42)})
-                                inc)]}
-                 {:dispatch! (fn [x] (reset! ev x))})]
-      (.dispatchEvent (.-firstChild node)
-                      (new js/Event "click"))
-      (is (= @ev 43))))))
+#?(:cljs
+   (deftest patch-translate-test
+     (let [[node state] (t/prepare!)
+           ev (atom nil)
+           state (patch! state node {})]
+       ;; basic
+       (let [state (patch! state
+                           node
+                           {:childNodes [(core/translate
+                                          (html/div {:onClick (constantly 42)})
+                                          inc)]}
+                           {:dispatch! (fn [x] (reset! ev x))})]
+         (.dispatchEvent (.-firstChild node)
+                         (new js/Event "click"))
+         (is (= @ev 43))))))
 
 ;; TODO: test keyed.

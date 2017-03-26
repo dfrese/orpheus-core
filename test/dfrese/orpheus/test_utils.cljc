@@ -1,5 +1,5 @@
 (ns dfrese.orpheus.test-utils
-  (:require [dfrese.orpheus.lift :as lift]
+  (:require [dfrese.orpheus.patch :as patch]
             #?@(:cljs [[dfrese.edomus.browser :as dom-impl]])
             #?@(:clj [[dfrese.edomus.virtual :as dom-impl]])
             [dfrese.edomus.core :as dom]
@@ -20,7 +20,7 @@
 (defn prepare! []
   (let [doc (document)
         e (dom/create-element doc "div")]
-    [e (lift/lift-properties e)]))
+    [e (patch/lift e)]))
 
 ;; generators for velements:
 
