@@ -54,10 +54,7 @@
 (defn ^:no-doc patch-style! [element old-v new-v]
   (util/patch-map-simple nil old-v new-v
                          #(dom/remove-style! element %2)
-                         #(dom/set-style! element %2 %3)
-                         #_(fn [_ k o n]
-                             (when (not= o n)
-                               (dom/set-style! element k n)))))
+                         #(dom/set-style! element %2 %3)))
 
 (defn ^:no-doc init-style! [element v]
   (reduce-kv #(dom/set-style! element %2 %3)
