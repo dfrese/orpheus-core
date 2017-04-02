@@ -228,9 +228,25 @@
         (throw (ex-info (str "Unsupported vdom element: " (pr-str old-vdom) ".") {:value old-vdom}))))))
 
 (defn ^:no-doc destroy-node! [options node vdom]
-  (when (and (core/velement? vdom)
-             (core/leaf-type? (core/ve-type vdom)))
-    (core/leaf-type-destroy! (core/ve-type vdom) node (core/ve-props vdom) options)))
+  (cond
+    (core/velement? vdom)
+    (let [type (core/ve-type vdom)
+          props (core/ve-props vdom)]
+      (cond
+        (core/element-type? type)
+        (let [vdoms (or (get props "childNodes")
+                        (get props :childNodes))]
+          (reduce (fn [i vdom]
+                    (destroy-node! options (dom/get-child node i) vdom)
+                    (inc i))
+                  0
+                  vdoms))
+        (core/indirection-type? type)
+        (destroy-node! options node (core/expand-indirection type props))
+        (core/leaf-type? type)
+        (core/leaf-type-destroy! type node props options)))
+    (core/with-context-update? vdom) ;; FIXME: update options.
+    (destroy-node! options node (:content vdom))))
 
 (defn ^:no-doc init-children! [element vdoms document options]
   (doseq [c vdoms]
