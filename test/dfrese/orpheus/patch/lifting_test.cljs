@@ -7,6 +7,9 @@
 (deftest lift-test
   (testing "it lifts basic children"
     (let [node (doto (.createElement js/document "div")
-                 (.appendChild (.createElement js/document "span")))]
+                 (.appendChild (.createElement js/document "span")))
+          [state vdom] (lifting/lift-properties node)]
       (is (= {"childNodes" [(html/span {"childNodes" []})]}
-             (lifting/lift-properties node))))))
+             vdom))
+      (is (= [[]]
+             state)))))

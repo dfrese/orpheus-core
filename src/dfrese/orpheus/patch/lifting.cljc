@@ -9,11 +9,12 @@
   (cond
     (dom/element? node)
     ;; TODO pick up 'is' property into options if it's there.
-    (core/velement (core/element-type (dom/get-property node "namespaceURI") (dom/get-property node "tagName"))
-                   (lift-properties node))
+    (let [[state props] (lift-properties node)]
+      [state (core/velement (core/element-type (dom/get-property node "namespaceURI") (dom/get-property node "tagName"))
+                            props)])
     
     (dom/text-node? node)
-    (dom/text-node-value node)
+    [nil (dom/text-node-value node)]
 
     :else
     (do
@@ -30,4 +31,5 @@
   (let [lifted (lift-children element (dom/child-nodes element))]
     ;; Note: lift-children may modify the dom, removing some children.
     (assert (= (count lifted) (count (dom/child-nodes element))))
-    {"childNodes" (vec lifted)}))
+    [(vec (map first lifted))
+     {"childNodes" (vec (map second lifted))}]))

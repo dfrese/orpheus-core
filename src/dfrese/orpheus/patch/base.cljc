@@ -33,7 +33,7 @@
         nil))
     nil))
 
-(defn ^:no-doc set-simple-property! [element name value options]
+(defn ^:no-doc set-simple-property! [state element name value options]
   (if-let [etype (and (or (nil? value) ;; nil for removal :-/ TODO: look at old-v if it's an handler instead?
                           (ifn? value))
                       (event-type? name))]
@@ -49,92 +49,103 @@
           (dom-event/set-event-handler! element etype f)))
       nil)
     ;; any other prop
-    (dom/set-property! element name value)))
+    (dom/set-property! element name value))
+  state)
 
-(defn ^:no-doc patch-style! [element old-v new-v]
+(defn ^:no-doc patch-style! [state element old-v new-v]
   (util/patch-map-simple nil old-v new-v
                          #(dom/remove-style! element %2)
-                         #(dom/set-style! element %2 %3)))
+                         #(dom/set-style! element %2 %3))
+  state)
 
-(defn ^:no-doc init-style! [element v]
+(defn ^:no-doc init-style! [state element v]
   (reduce-kv #(dom/set-style! element %2 %3)
              nil
-             v))
+             v)
+  state)
 
-(defn ^:no-doc patch-classes! [element old-v new-v]
+(defn ^:no-doc patch-classes! [state element old-v new-v]
   (let [o (set old-v) ;; should be sets already for optimal performance
         n (set new-v)]
     (doseq [c (set/difference o n)]
       (dom/remove-class! element c))
     (doseq [c (set/difference n o)]
-      (dom/add-class! element c))))
+      (dom/add-class! element c)))
+  state)
 
-(defn ^:no-doc init-classes! [element v]
-  (dom/set-classes! element v))
+(defn ^:no-doc init-classes! [state element v]
+  (dom/set-classes! element v)
+  state)
 
-(defn ^:no-doc patch-attributes! [element old-v new-v]
+(defn ^:no-doc patch-attributes! [state element old-v new-v]
   (util/patch-map-simple nil old-v new-v
                          #(dom/remove-attribute! element %2)
-                         #(dom/set-attribute! element %2 %3)
-                         #_(fn [_ k o n]
-                             (when (not= o n)
-                               (dom/set-attribute! element k n)))))
+                         #(dom/set-attribute! element %2 %3))
+  state)
 
-(defn ^:no-doc init-attributes! [element v]
+(defn ^:no-doc init-attributes! [state element v]
   (reduce-kv #(dom/set-attribute! element %2 %3)
              nil
-             v))
+             v)
+  state)
 
-(defn ^:no-doc patch-property! [element n old-v new-v document options]
+(defn ^:no-doc patch-property! [state element n old-v new-v document options]
   (if (identical? old-v new-v) ;; doing a = is probably not worth it
     nil
     (let [n (name n)]
       (case n
-        "childNodes" (patch-children! element old-v new-v document options)
-        "style" (patch-style! element old-v new-v)
-        "attributes" (patch-attributes! element old-v new-v)
-        "classList" (patch-classes! element old-v new-v)
+        "childNodes" (patch-children! state element old-v new-v document options)
+        "style" (patch-style! state element old-v new-v)
+        "attributes" (patch-attributes! state element old-v new-v)
+        "classList" (patch-classes! state element old-v new-v)
         (if (not= old-v new-v) ;; need to because of IConvertible
-          (set-simple-property! element n new-v options)
-          nil)))))
+          (set-simple-property! state element n new-v options)
+          state)))))
 
-(defn ^:no-doc init-property! [element n value document options]
+(defn ^:no-doc init-property! [state element n value document options]
   ;; Note: value can always be nil; mening to remove the property 'as much as possible'.
   (let [n (name n)]
     (case n
-      "childNodes" (init-children! element value document options)
-      "style" (init-style! element value)
-      "attributes" (init-attributes! element value)
-      "classList" (init-classes! element (set value))
-      (set-simple-property! element n value options))))
+      "childNodes" (init-children! state element value document options)
+      "style" (init-style! state element value)
+      "attributes" (init-attributes! state element value)
+      "classList" (init-classes! state element (set value))
+      (set-simple-property! state element n value options))))
 
-(defn ^:no-doc remove-property! [element n]
+(defn ^:no-doc remove-property! [state element n]
   ;; to actively remove a property that was set before (in constrast to leaving it totally unchanged):
   (let [options nil ;; setting to nil should go without options
         document nil
-        n (name n)] 
+        n (name n)]
     (case n
       "childNodes" (do ;; we actually need to do both - TODO explain why
                      (dom/clear-child-nodes! element)
-                     (init-property! element "childNodes" [] document options))
-      (init-property! element n nil document options))))
+                     (init-property! state element "childNodes" [] document options))
+      (init-property! state element n nil document options))))
 
-(defn ^:no-doc patch-properties! [element old-props new-props document options]
-  (util/patch-map nil
+(defn ^:no-doc patch-properties! [state element old-props new-props document options]
+  (util/patch-map state
                   old-props
                   new-props
-                  #(remove-property! element %2)
-                  #(init-property! element %2 %3 document options)
-                  #(patch-property! element %2 %3 %4 document options)))
+                  #(remove-property! %1 element %2)
+                  #(init-property! %1 element %2 %3 document options)
+                  #(patch-property! %1 element %2 %3 %4 document options)))
 
 ;; children
 
 (defn ^:no-doc set-props! ;; need not be async..
-  [element props document options]
-  (reduce-kv (fn [_ k v]
-               (init-property! element k v document options))
-             nil
+  [state element props document options]
+  (reduce-kv (fn [state k v]
+               (init-property! state element k v document options))
+             state
              props))
+
+(defrecord IndirectionState [expanded sub-state])
+;; other state types:
+;; element: vector of children states
+;; leaf-type: it's own state
+;; with-context-update: none (state of content)
+;; strings: nil
 
 (defn ^:no-doc create-child [document vdom options]
   (loop [vdom vdom
@@ -146,16 +157,15 @@
         (cond
           (core/element-type? type)
           (let [e (core/create-element-node document type)]
-            (set-props! e props document options)
-            ;; Note: and/or wait for the async success? ("mounted")
-            e)
+            [(set-props! [] e props document options) e])
 
           (core/indirection-type? type)
-          (recur (core/expand-indirection type (core/ve-props vdom))
-                 options)
+          (let [expanded (core/expand-indirection type (core/ve-props vdom))
+                [sub-state node] (create-child document expanded options)]
+            [(IndirectionState. expanded sub-state) node])
 
-          (core/leaf-type? type)
-          (core/leaf-type-create type props options)
+          (core/leaf-type? type) ;; TODO: get state!?
+          [nil (core/leaf-type-create type props options)]
 
           :else
           (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {:type type}))))
@@ -163,14 +173,14 @@
       (recur (:content vdom) ((:update-options vdom) options))
 
       (string? vdom) ;; calling str would hide a lot of errors; and the user should explicitly do it.
-      (dom/create-text-node document vdom)
+      [nil (dom/create-text-node document vdom)]
       
       :else
       (throw (ex-info (str "Unsupported vdom element: " (pr-str vdom) ".") {:value vdom})))))
 
 ;; ----
 
-(defn ^:no-doc alter-child! [document options node old-vdom new-vdom]
+(defn ^:no-doc alter-child! [state document options node old-vdom new-vdom]
   (when-not (identical? old-vdom new-vdom)
     (loop [old-vdom old-vdom
            new-vdom new-vdom
@@ -190,19 +200,22 @@
               (core/element-type? type)
               (let [old-props (core/ve-props old-vdom)
                     new-props (core/ve-props new-vdom)]
-                (patch-properties! node
+                (patch-properties! state node
                                    old-props new-props
                                    document
-                                   options)
-                nil)
+                                   options))
         
               (core/indirection-type? type)
-              (recur (core/expand-indirection type old-props) (core/expand-indirection type new-props)
-                     options)
+              (do
+                (assert (instance? IndirectionState state))
+                (assert (= (.-expanded state) (core/expand-indirection type old-props)))
+                (let [new-vdom (core/expand-indirection type new-props)]
+                  (IndirectionState. new-vdom
+                                     (alter-child! (.-sub-state state) document options node (.-expanded state) new-vdom))))
 
               (core/leaf-type? type)
               (do (core/leaf-type-patch! type node old-props new-props options)
-                  nil)
+                  state)
           
               :else
               (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {})))))
@@ -222,12 +235,12 @@
           (when-not (dom/text-node? node)
             (throw (ex-info (str "Actual node is not a text node, where the previous vdom is: " (pr-str old-vdom) ", " node ".") {})))
           (dom/set-text-node-value! node new-vdom)
-          nil)
+          state)
       
         :else
         (throw (ex-info (str "Unsupported vdom element: " (pr-str old-vdom) ".") {:value old-vdom}))))))
 
-(defn ^:no-doc destroy-node! [options node vdom]
+(defn ^:no-doc destroy-node! [state options node vdom]
   (cond
     (core/velement? vdom)
     (let [type (core/ve-type vdom)
@@ -236,21 +249,30 @@
         (core/element-type? type)
         (let [vdoms (or (get props "childNodes")
                         (get props :childNodes))]
+          (assert (vector? state)) ;; one state for each child.
           (reduce (fn [i vdom]
-                    (destroy-node! options (dom/get-child node i) vdom)
+                    (destroy-node! (get state i) options (dom/get-child node i) vdom)
                     (inc i))
                   0
                   vdoms))
         (core/indirection-type? type)
-        (destroy-node! options node (core/expand-indirection type props))
+        (do
+          (assert (instance? IndirectionState state))
+          (assert (= (.-expanded state) (core/expand-indirection type props)))
+          (destroy-node! (.-sub-state state) options node (.-expanded state)))
+        
         (core/leaf-type? type)
         (core/leaf-type-destroy! type node props options)))
     (core/with-context-update? vdom) ;; FIXME: update options.
-    (destroy-node! options node (:content vdom))))
+    (destroy-node! state options node (:content vdom))))
 
-(defn ^:no-doc init-children! [element vdoms document options]
-  (doseq [c vdoms]
-    (dom/append-child! element (create-child document c options))))
+(defn ^:no-doc init-children! [state element vdoms document options]
+  (let [res (map #(create-child document % options)
+                 vdoms)]
+    (doseq [c (map second res)]
+      (dom/append-child! element c))
+    ;; total state is the vector of the child states:
+    (mapv first res)))
 
 (defn ^:no-doc similar-vdom?
   "Aka 'updateable' element"
@@ -277,15 +299,15 @@
   #?(:clj node)
   #?(:cljs (.-nodeName node)))
 
-(defn ^:no-doc remove-child [element node]
+#_(defn ^:no-doc remove-child [element node]
   (dom/remove-child! element node)
   element)
 
-(defn ^:no-doc append-child [element node]
+#_(defn ^:no-doc append-child [element node]
   (dom/append-child! element node)
   element)
 
-(defn ^:no-doc insert-child [element node before]
+#_(defn ^:no-doc insert-child [element node before]
   (dom/insert-before! element node before)
   element)
 
@@ -299,7 +321,7 @@
     (core/with-context-update? vdom) (:update-options vdom)
     :else ::text))
 
-(defn ^:no-doc patch-children-v3 [element old-vdoms new-vdoms document options]
+#_(defn ^:no-doc patch-children-v3 [element old-vdoms new-vdoms document options]
   (let [nodes (util/vec!? (dom/child-nodes element))
         olds (util/vec!? old-vdoms)
         type-reservoir (r/type-reservoir-init (mapv vdom-type olds))]
@@ -343,27 +365,36 @@
                (aset r i (dom/get-child element i)))
              r)))
 
-(defn ^:no-doc patch-children-v1 [element old-vdoms new-vdoms document options]
+(defn ^:no-doc patch-children-v1 [state element old-vdoms new-vdoms document options]
+  (assert (vector? state))
   (let [olds (to-array old-vdoms)
         ;; Note: this nodes list must not change during the patch
-        nodes (child-nodes-array element)]
-    (util/fold-diff-patch-v1 element
-                             (fn append [element new]
-                               (append-child element (create-child document new options)))
-                             (fn remove [element idx]
-                               (let [node (aget nodes idx)
-                                     old (aget olds idx)
-                                     res (remove-child element node)]
-                                 (destroy-node! options node old)
-                                 res))
-                             (fn insert [element new before-idx]
-                               (let [before-node (aget nodes before-idx)]
-                                 (insert-child element (create-child document new options) before-node)))
-                             (fn patch [element idx new]
+        nodes (child-nodes-array element)
+        old-states state]
+    ;; Note: there's a guarantee that all final nodes are either
+    ;; appended, inserted or patched in-order; so we can sequentially
+    ;; build the new state up.
+    (util/fold-diff-patch-v1 []
+                             (fn append [state new]
+                               (let [[st n] (create-child document new options)]
+                                 (dom/append-child! element n)
+                                 (conj state st)))
+                             (fn remove [state idx]
                                (let [node (aget nodes idx)
                                      old (aget olds idx)]
-                                 (alter-child! document options node old new))
-                               element)
+                                 (dom/remove-child! element node)
+                                 (destroy-node! (get old-states idx) options node old)
+                                 state))
+                             (fn insert [state new before-idx]
+                               (let [before-node (aget nodes before-idx)
+                                     [st n] (create-child document new options)]
+                                 (dom/insert-before! element n before-node)
+                                 (conj state st)))
+                             (fn patch [state idx new]
+                               (let [node (aget nodes idx)
+                                     old (aget olds idx)]
+                                 (conj state
+                                       (alter-child! (get old-states idx) document options node old new))))
                              (count olds)
                              new-vdoms
                              (fn patchable? [idx new]
@@ -378,15 +409,14 @@
                                  (some? (vdom-key old)))))))
 
 
-(defn ^:no-doc patch-children! [element old-vdoms new-vdoms document options]
+(defn ^:no-doc patch-children! [state element old-vdoms new-vdoms document options]
   (if (identical? old-vdoms new-vdoms) ;; ..cheap shortcut
-    nil
+    state
     (do
       (assert (= (dom/child-nodes-count element) (count old-vdoms))
               (str "Actual dom child nodes do not match the number of vdom elements: " (pr-str old-vdoms) " /= "
                    (pr-str (map node-name (dom/child-nodes element))) "."))
-
-      (patch-children-v1 element old-vdoms new-vdoms document options)
-      
-      (assert (= (dom/child-nodes-count element) (count new-vdoms)) (str "Internal error; new vdoms:" (pr-str new-vdoms)))
-      nil)))
+      (let [state (patch-children-v1 state element old-vdoms new-vdoms document options)]
+        (assert (= (dom/child-nodes-count element) (count state)))
+        (assert (= (dom/child-nodes-count element) (count new-vdoms)) (str "Internal error; new vdoms:" (pr-str new-vdoms)))
+        state))))

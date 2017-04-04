@@ -18,10 +18,10 @@
 
 (defn patch [old new]
   (try (let [doc (virtual/new-document)
-        element (dom/create-element doc "div")]
-    (base/patch-properties! element {} old doc {})
-    (base/patch-properties! element old new doc {})
-    element)
+             element (dom/create-element doc "div")]
+         (let [state (base/patch-properties! [] element {} old doc {})]
+           (base/patch-properties! state element old new doc {}))
+         element)
        (catch :default e
          (println (.-stack e))
          (throw e))))
