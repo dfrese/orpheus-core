@@ -143,7 +143,7 @@
 (defrecord IndirectionState [expanded sub-state])
 ;; other state types:
 ;; element: vector of children states
-;; leaf-type: it's own state
+;; foreign-type: it's own state
 ;; with-context-update: none (state of content)
 ;; strings: nil
 
@@ -164,8 +164,13 @@
                 [sub-state node] (create-child document expanded options)]
             [(IndirectionState. expanded sub-state) node])
 
-          (core/leaf-type? type) ;; TODO: get state!?
-          [nil (core/leaf-type-create type props options)]
+          (core/foreign-type? type)
+          (let [res (core/foreign-type-create type props options)]
+            (assert (sequential? res))
+            (assert (= 2 (count res)))
+            (assert (or (dom/text-node? (second res))
+                        (dom/element? (second res))))
+            res)
 
           :else
           (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {:type type}))))
@@ -213,9 +218,8 @@
                   (IndirectionState. new-vdom
                                      (alter-child! (.-sub-state state) document options node (.-expanded state) new-vdom))))
 
-              (core/leaf-type? type)
-              (do (core/leaf-type-patch! type node old-props new-props options)
-                  state)
+              (core/foreign-type? type)
+              (core/foreign-type-patch! type state node old-props new-props options)
           
               :else
               (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {})))))
@@ -261,8 +265,8 @@
           (assert (= (.-expanded state) (core/expand-indirection type props)))
           (destroy-node! (.-sub-state state) options node (.-expanded state)))
         
-        (core/leaf-type? type)
-        (core/leaf-type-destroy! type node props options)))
+        (core/foreign-type? type)
+        (core/foreign-type-destroy! type state node props options)))
     (core/with-context-update? vdom) ;; FIXME: update options.
     (destroy-node! state options node (:content vdom))))
 

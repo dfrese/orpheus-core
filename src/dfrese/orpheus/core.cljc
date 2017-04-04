@@ -195,22 +195,22 @@
   ([ns name options]
    (ElementType. ns (string/lower-case name) options)))
 
-;; A lead type could be something like a react component, which can
+;; A foreign type could be something like a react component, which can
 ;; be integrated into the dom, but has special rules for construction
 ;; and may also participate in the patching, by using it as the type
 ;; of a velement.
-(defprotocol ILeafType
+(defprotocol IForeignType
   "A protocol for velement types with special node creation and update
   methods. There are no restrictions on the type of properties, which
   are directly taken from the argument to [[velement]]."
-  (leaf-type-create [this props options] "Create a dom node for this type and props.")
-  (leaf-type-patch! [this node old-props new-props options] "Update the dom node for new props of the same type.")
-  (leaf-type-destroy! [this node props options] "Clean up the dom node."))
+  (foreign-type-create [this props options] "Create a dom node for this type and props, and return [initial-state node]")
+  (foreign-type-patch! [this state node old-props new-props options] "Update the dom node for new props of the same type, and return an updated state.")
+  (foreign-type-destroy! [this state node props options] "Clean up the dom node."))
 
-(defn leaf-type?
-  "Returns if v is a ILeafType."
+(defn foreign-type?
+  "Returns if v is a IForeignType."
   [v]
-  (satisfies? ILeafType v))
+  (satisfies? IForeignType v))
 
 ;; function type components:
 
