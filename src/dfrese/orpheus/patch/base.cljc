@@ -165,7 +165,7 @@
             [(IndirectionState. expanded sub-state) node])
 
           (core/foreign-type? type)
-          (let [res (core/foreign-type-create type props options)]
+          (let [res (core/foreign-type-create type document props options)]
             (assert (sequential? res))
             (assert (= 2 (count res)))
             (assert (or (dom/text-node? (second res))
