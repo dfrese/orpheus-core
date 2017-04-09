@@ -18,15 +18,21 @@
 ;; TODO: keys, mouse positions/clicks?
 
 (defn property [element p]
-  (get (core/ve-props element) (name p)))
+  (let [m (core/ve-props element)]
+    (if (contains? m p)
+      (get m p)
+      (get m (name p)))))
 
 (defn update-property [element p f & args]
-  ;; TODO: look for (name p) too?
-  (core/set-ve-props element (apply update (core/ve-props element) p f args)))
+  (core/set-ve-props element
+                     (let [curr (property element p)
+                           upd (apply f curr args)]
+                       (-> (core/ve-props element)
+                           (dissoc p (name p))
+                           (assoc p upd)))))
 
 (defn set-property [element p v]
-  ;; TODO: (name p) or not?
-  (core/set-ve-props element (assoc (core/ve-props element) p v)))
+  (update-property element p (constantly v)))
 
 (def ^:no-doc html-ns "http://www.w3.org/1999/xhtml")
 
