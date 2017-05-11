@@ -1,5 +1,5 @@
 (defproject dfrese/orpheus-core "0.1.0-SNAPSHOT"
-  :description "FIXME: write description"
+  :description "Orpheus is a purely functional, extensible, virtual dom library."
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
