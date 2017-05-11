@@ -39,8 +39,8 @@
                       (event-type? name))]
     (do
       ;; set event handlers as a side effect, unfortunately; but the
-      ;; properties 'onclick' etc., cannot be called propertly, for
-      ;; custom event triggering (at least I did not find out). Onle
+      ;; properties 'onclick' etc., cannot be called properly, for
+      ;; custom event triggering (at least I did not find out). Only
       ;; the 'addEventListener' handlers can be called properly via
       ;; dispatchEvent - so we map them here.
       (if (nil? value)
@@ -93,6 +93,7 @@
   (if (identical? old-v new-v) ;; doing a = is probably not worth it
     nil
     (let [n (name n)]
+      ;; TODO: make this extensible; e.g. :points of svg polyline elements. (so per element type?)
       (case n
         "childNodes" (patch-children! state element old-v new-v document options)
         "style" (patch-style! state element old-v new-v)
@@ -103,7 +104,7 @@
           state)))))
 
 (defn ^:no-doc init-property! [state element n value document options]
-  ;; Note: value can always be nil; mening to remove the property 'as much as possible'.
+  ;; Note: value can always be nil; meaning to remove the property 'as much as possible'.
   (let [n (name n)]
     (case n
       "childNodes" (init-children! state element value document options)
