@@ -94,7 +94,7 @@
 
 (defn ^:no-doc patch-property! [state element n old-v new-v document options]
   (if (identical? old-v new-v) ;; doing a = is probably not worth it
-    nil
+    state
     (let [n (name n)]
       ;; TODO: make this extensible; e.g. :points of svg polyline elements. (so per element type?)
       (case n
@@ -190,7 +190,8 @@
 ;; ----
 
 (defn ^:no-doc alter-child! [state document options node old-vdom new-vdom]
-  (when-not (identical? old-vdom new-vdom)
+  (if (identical? old-vdom new-vdom)
+    state
     (loop [old-vdom old-vdom
            new-vdom new-vdom
            options options]

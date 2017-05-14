@@ -31,5 +31,5 @@
   (let [lifted (lift-children element (dom/child-nodes element))]
     ;; Note: lift-children may modify the dom, removing some children.
     (assert (= (count lifted) (count (dom/child-nodes element))))
-    [(vec (map first lifted))
-     {"childNodes" (vec (map second lifted))}]))
+    [(mapv first lifted)
+     {"childNodes" (mapv second lifted)}]))

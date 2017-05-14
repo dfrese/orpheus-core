@@ -84,3 +84,23 @@
   )
 
 ;; TODO: Test keyed guarantees (same order preserves nodes; maybe event no removal)
+
+(deftest patch-state-test
+  (let [doc (virtual/new-document)
+        element (dom/create-element doc "div")]
+    (is (= :foo (base/set-simple-property! :foo element "height" 42 {})))
+
+    (is (= :foo (base/patch-style! :foo element {:padding "10" :margin "5"} {:padding "20" :color "red"})))
+    (is (= :foo (base/init-style! :foo element {:padding "10" :margin "5"})))
+
+    (is (= :foo (base/patch-classes! :foo element #{"a" "b"} #{"b" "c"})))
+    (is (= :foo (base/init-classes! :foo element #{"d" "e"})))
+
+    (is (= :foo (base/patch-attributes! :foo element {"title" "bar" "data" "42"} {"title" "baz" "aria" "foo"})))
+    (is (= :foo (base/init-attributes! :foo element {"title" "bar"})))
+
+    (is (= :foo (base/patch-property! :foo element "classList" #{"a" "b"} #{"b" "c"} doc {})))
+    (let [v #{"a" "b"}]
+      (is (= :foo (base/patch-property! :foo element "classList" v v doc {})))))
+  
+  )
