@@ -64,9 +64,12 @@
              v)
   state)
 
+(defn- set!? [v]
+  (if (set? v) v (set v)))
+
 (defn ^:no-doc patch-classes! [state element old-v new-v]
-  (let [o (set old-v) ;; should be sets already for optimal performance
-        n (set new-v)]
+  (let [o (set!? old-v) ;; should be sets already for optimal performance
+        n (set!? new-v)]
     (doseq [c (set/difference o n)]
       (dom/remove-class! element c))
     (doseq [c (set/difference n o)]
