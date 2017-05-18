@@ -1,38 +1,8 @@
 (ns dfrese.orpheus.html
   (:require [dfrese.orpheus.core :as core]
-            #?(:cljs [dfrese.orpheus.impl.util :refer-macros (deftag)])
-            #?(:clj [dfrese.orpheus.impl.util :refer (deftag)]))
+            #?(:cljs [dfrese.orpheus.types.element :refer-macros (deftag)])
+            #?(:clj [dfrese.orpheus.types.element :refer (deftag)]))
   (:refer-clojure :exclude [time]))
-
-;; TODO: add js/Event to edomus
-(defn target-value
-  "Return the `target.value` of an event"
-  [e]
-  (.-value (.-target e)))
-
-(defn target-checked
-  "Return the `target.checked` of an event."
-  [e]
-  (.-checked (.-target e)))
-
-;; TODO: keys, mouse positions/clicks?
-
-(defn property [element p]
-  (let [m (core/ve-props element)]
-    (if (contains? m p)
-      (get m p)
-      (get m (name p)))))
-
-(defn update-property [element p f & args]
-  (core/set-ve-props element
-                     (let [curr (property element p)
-                           upd (apply f curr args)]
-                       (-> (core/ve-props element)
-                           (dissoc p (name p))
-                           (assoc p upd)))))
-
-(defn set-property [element p v]
-  (update-property element p (constantly v)))
 
 (def ^:no-doc html-ns "http://www.w3.org/1999/xhtml")
 

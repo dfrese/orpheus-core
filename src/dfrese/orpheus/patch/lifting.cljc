@@ -1,6 +1,7 @@
 (ns dfrese.orpheus.patch.lifting
   "Read a real dom structure into a virtual dom tree."
-  (:require [dfrese.orpheus.core :as core]
+  (:require [dfrese.orpheus.types :as types]
+            [dfrese.orpheus.types.element :as element]
             [dfrese.edomus.core :as dom]))
 
 (declare lift-properties)
@@ -10,8 +11,8 @@
     (dom/element? node)
     ;; TODO pick up 'is' property into options if it's there.
     (let [[state props] (lift-properties node)]
-      [state (core/velement (core/element-type (dom/get-property node "namespaceURI") (dom/get-property node "tagName"))
-                            props)])
+      [state (types/velement (element/element-type (dom/get-property node "namespaceURI") (dom/get-property node "tagName"))
+                             props)])
     
     (dom/text-node? node)
     [nil (dom/text-node-value node)]

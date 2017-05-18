@@ -1,7 +1,7 @@
 (ns dfrese.orpheus.svg
   (:require [dfrese.orpheus.core :as core]
-            #?(:cljs [dfrese.orpheus.impl.util :refer-macros (deftag)])
-            #?(:clj [dfrese.orpheus.impl.util :refer (deftag)])))
+            #?(:cljs [dfrese.orpheus.types.element :refer-macros (deftag)])
+            #?(:clj [dfrese.orpheus.types.element :refer (deftag)])))
 
 (def ^:no-doc svg-ns "http://www.w3.org/2000/svg")
 

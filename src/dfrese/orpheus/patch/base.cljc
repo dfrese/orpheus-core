@@ -1,8 +1,11 @@
 (ns dfrese.orpheus.patch.base
   "Functions to apply a virtual dom to a real dom."
   (:require [dfrese.orpheus.core :as core]
+            [dfrese.orpheus.types.element :as element]
+            [dfrese.orpheus.types.indirection :as indirection]
+            [dfrese.orpheus.types.foreign :as foreign]
+            [dfrese.orpheus.types :as types]
             [dfrese.orpheus.patch.util :as util]
-            [dfrese.orpheus.patch.reservoirs :as r]
             [dfrese.orpheus.patch.indices :as i]
             [dfrese.edomus.core :as dom]
             [dfrese.edomus.event :as dom-event]
@@ -155,21 +158,21 @@
   (loop [vdom vdom
          options options]
     (cond
-      (core/velement? vdom)
-      (let [type (core/ve-type vdom)
-            props (core/ve-props vdom)]
+      (types/velement? vdom)
+      (let [type (types/ve-type vdom)
+            props (types/ve-props vdom)]
         (cond
-          (core/element-type? type)
-          (let [e (core/create-element-node document type)]
+          (element/element-type? type)
+          (let [e (element/create-element-node document type)]
             [(set-props! [] e props document options) e])
 
-          (core/indirection-type? type)
-          (let [expanded (core/expand-indirection type (core/ve-props vdom))
+          (indirection/indirection-type? type)
+          (let [expanded (indirection/expand-indirection type props)
                 [sub-state node] (create-child document expanded options)]
             [(IndirectionState. expanded sub-state) node])
 
-          (core/foreign-type? type)
-          (let [res (core/foreign-type-create type document props options)]
+          (foreign/foreign-type? type)
+          (let [res (foreign/foreign-type-create type document props options)]
             (assert (sequential? res))
             (assert (= 2 (count res)))
             (assert (or (dom/text-node? (second res))
@@ -178,8 +181,8 @@
 
           :else
           (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {:type type}))))
-      (core/with-context-update? vdom)
-      (recur (:content vdom) ((:update-options vdom) options))
+      (types/with-context-update? vdom)
+      (recur (types/with-context-update-content vdom) ((types/with-context-update-f vdom) options))
 
       (string? vdom) ;; calling str would hide a lot of errors; and the user should explicitly do it.
       [nil (dom/create-text-node document vdom)]
@@ -196,46 +199,43 @@
            new-vdom new-vdom
            options options]
       (cond
-        (core/velement? old-vdom)
+        (types/velement? old-vdom)
         ;; update an element of same type.
         (do
-          (assert (core/velement? new-vdom))
-          (let [type (core/ve-type old-vdom)
-                old-props (core/ve-props old-vdom)
-                new-props (core/ve-props new-vdom)]
+          (assert (types/velement? new-vdom))
+          (let [type (types/ve-type old-vdom)
+                old-props (types/ve-props old-vdom)
+                new-props (types/ve-props new-vdom)]
             (when-not (dom/element? node)
               (throw (ex-info (str "Actual node is not an element, where the previous vdom is: " (pr-str old-vdom) ", " node ".") {})))
-            (assert (= (core/ve-type old-vdom) (core/ve-type new-vdom))) ;; impl error
+            (assert (= type (types/ve-type new-vdom))) ;; impl error
             (cond
-              (core/element-type? type)
-              (let [old-props (core/ve-props old-vdom)
-                    new-props (core/ve-props new-vdom)]
-                (patch-properties! state node
-                                   old-props new-props
-                                   document
-                                   options))
+              (element/element-type? type)
+              (patch-properties! state node
+                                 old-props new-props
+                                 document
+                                 options)
         
-              (core/indirection-type? type)
-              (do
+              (indirection/indirection-type? type)
+              (let [state ^IndirectionState state]
                 (assert (instance? IndirectionState state))
-                (assert (= (.-expanded state) (core/expand-indirection type old-props)))
-                (let [new-vdom (core/expand-indirection type new-props)]
+                (assert (= (.-expanded state) (indirection/expand-indirection type old-props)))
+                (let [new-vdom (indirection/expand-indirection type new-props)]
                   (IndirectionState. new-vdom
                                      (alter-child! (.-sub-state state) document options node (.-expanded state) new-vdom))))
 
-              (core/foreign-type? type)
-              (core/foreign-type-patch! type state node old-props new-props options)
+              (foreign/foreign-type? type)
+              (foreign/foreign-type-patch! type state node old-props new-props options)
           
               :else
               (throw (ex-info (str "Unsupport velement type: " (pr-str type) ".") {})))))
 
-        (core/with-context-update? old-vdom)
+        (types/with-context-update? old-vdom)
         (do
-          ;; TODO: keep abstraction...
-          (assert (core/with-context-update? new-vdom))
-          (assert (= (:update-options old-vdom) (:update-options new-vdom)))
-          (recur (:content old-vdom) (:content new-vdom)
-                 ((:update-options new-vdom) options)))
+          (assert (types/with-context-update? new-vdom))
+          (assert (= (types/with-context-update-f old-vdom) (types/with-context-update-f new-vdom))) ;; impl error
+          (recur (types/with-context-update-content old-vdom) (types/with-context-update-content new-vdom)
+                 ((types/with-context-update-f new-vdom) options)))
       
         (string? old-vdom)
         ;; update text of a textnode to new-vdom (a string or anything else)
@@ -251,11 +251,11 @@
 
 (defn ^:no-doc destroy-node! [state options node vdom]
   (cond
-    (core/velement? vdom)
-    (let [type (core/ve-type vdom)
-          props (core/ve-props vdom)]
+    (types/velement? vdom)
+    (let [type (types/ve-type vdom)
+          props (types/ve-props vdom)]
       (cond
-        (core/element-type? type)
+        (element/element-type? type)
         (let [vdoms (or (get props "childNodes")
                         (get props :childNodes))]
           (assert (vector? state)) ;; one state for each child.
@@ -264,16 +264,17 @@
                     (inc i))
                   0
                   vdoms))
-        (core/indirection-type? type)
-        (do
+        
+        (indirection/indirection-type? type)
+        (let [state ^IndirectionState state]
           (assert (instance? IndirectionState state))
-          (assert (= (.-expanded state) (core/expand-indirection type props)))
+          (assert (= (.-expanded state) (indirection/expand-indirection type props)))
           (destroy-node! (.-sub-state state) options node (.-expanded state)))
         
-        (core/foreign-type? type)
-        (core/foreign-type-destroy! type state node props options)))
-    (core/with-context-update? vdom) ;; FIXME: update options.
-    (destroy-node! state options node (:content vdom))))
+        (foreign/foreign-type? type)
+        (foreign/foreign-type-destroy! type state node props options)))
+    (types/with-context-update? vdom)
+    (recur state ((types/with-context-update-f vdom) options) node (types/with-context-update-content vdom))))
 
 (defn ^:no-doc init-children! [state element vdoms document options]
   (let [res (map #(create-child document % options)
@@ -289,14 +290,14 @@
   (cond
     (identical? vdom1 vdom2) true
     
-    (core/velement? vdom1)
-    (and (core/velement? vdom2)
-         (identical? (core/ve-type vdom1) (core/ve-type vdom2)))
+    (types/velement? vdom1)
+    (and (types/velement? vdom2)
+         (identical? (types/ve-type vdom1) (types/ve-type vdom2)))
 
-    (core/with-context-update? vdom1)
-    (and (core/with-context-update? vdom2)
-         ;; if the context-change changes, we recreate the tree (it might be bound in event-handlers)
-         (= (:update-options vdom1) (:update-options vdom2)))
+    (types/with-context-update? vdom1)
+    (and (types/with-context-update? vdom2)
+         ;; if the function changes, we recreate the tree (it might be bound in event-handlers)
+         (= (types/with-context-update-f vdom1) (types/with-context-update-f vdom2)))
 
     (string? vdom1) (string? vdom2)
     
@@ -308,64 +309,6 @@
   #?(:clj node)
   #?(:cljs (.-nodeName node)))
 
-#_(defn ^:no-doc remove-child [element node]
-  (dom/remove-child! element node)
-  element)
-
-#_(defn ^:no-doc append-child [element node]
-  (dom/append-child! element node)
-  element)
-
-#_(defn ^:no-doc insert-child [element node before]
-  (dom/insert-before! element node before)
-  element)
-
-(defn- ^:no-doc vdom-key [vdom]
-  (when (core/velement? vdom)
-    (core/ve-key vdom)))
-
-(defn- vdom-type [vdom]
-  (cond
-    (core/velement? vdom) (core/ve-type vdom)
-    (core/with-context-update? vdom) (:update-options vdom)
-    :else ::text))
-
-#_(defn ^:no-doc patch-children-v3 [element old-vdoms new-vdoms document options]
-  (let [nodes (util/vec!? (dom/child-nodes element))
-        olds (util/vec!? old-vdoms)
-        type-reservoir (r/type-reservoir-init (mapv vdom-type olds))]
-    (util/fold-diff-patch-keyed element
-                                append-child
-                                (fn remove-old [element nodei]
-                                  (remove-child element (nodes nodei)))
-                                (fn patch [element nodei new-vdom]
-                                  (let [old-vdom (olds nodei)]
-                                    (alter-child! document options (nodes nodei) old-vdom new-vdom))
-                                  element)
-                                (i/indices (count nodes))
-                                new-vdoms
-                                (fn patchable? [nodei new-vdom]
-                                  (similar-vdom? (olds nodei) new-vdom))
-                                (fn old-key [nodei]
-                                  (let [vdom (olds nodei)]
-                                    (vdom-key vdom)))
-                                vdom-key
-                                (fn create [vdom]
-                                  ;; Note: might be worth it to extend this on a 'most suitable' node?
-                                  (if-let [nodei (r/type-reservoir-pull! type-reservoir (vdom-type vdom))]
-                                    (let [node (nodes nodei)]
-                                      (alter-child! document options node (olds nodei) vdom)
-                                      node)
-                                    (create-child document vdom options)))
-                                (fn destroy! [nodei resurrectable?]
-                                  (if resurrectable?
-                                    (r/type-reservoir-push! type-reservoir nodei)
-                                    (destroy-node! options (nodes nodei) (olds nodei))))
-                                (fn resurrect [nodei]
-                                  (nodes nodei)))
-    (doseq [nodei (r/type-reservoir-seq type-reservoir)]
-      (destroy-node! options (nodes nodei) (olds nodei)))))
-
 (defn- child-nodes-array [element]
   #?(:clj (to-array (dom/child-nodes element)))
   #?(:cljs (let [n (dom/child-nodes-count element)
@@ -374,11 +317,15 @@
                (aset r i (dom/get-child element i)))
              r)))
 
+(defn- ^:no-doc vdom-key [vdom]
+  (when (types/velement? vdom)
+    (types/ve-key vdom)))
+
 (defn ^:no-doc patch-children-v1 [state element old-vdoms new-vdoms document options]
   (assert (vector? state))
   (let [olds (to-array old-vdoms)
         ;; Note: this nodes list must not change during the patch
-        nodes (child-nodes-array element)
+        ^objects nodes (child-nodes-array element)
         old-states state]
     ;; Note: there's a guarantee that all final nodes are either
     ;; appended, inserted or patched in-order; so we can sequentially

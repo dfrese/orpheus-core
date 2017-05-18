@@ -1,5 +1,4 @@
-(ns dfrese.orpheus.patch.util
-  (:require [dfrese.orpheus.patch.reservoirs :as r]))
+(ns dfrese.orpheus.patch.util)
 
 (def ^:private undef ::undef)
 
@@ -105,45 +104,4 @@
              (remove res (first olds)))
       )))
 
-(defn fold-diff-patch-keyed [init append remove patch olds news patchable? old-key new-key create destroy! resurrect]
-  ;; TODO: do we event have to do more for a focused elements? (not touching it at all?)
-  (let [reservoir (r/key-reservoir-init)
-        ;; when removing smth, put it in the reservoir; when appending try to take and patch smth from it.
-        res (fold-diff-patch init
-                             (fn append' [res new]
-                               (let [nkey (new-key new)]
-                                 (if-let [old (and nkey
-                                                   (r/key-reservoir-pull! reservoir nkey))]
-                                   ;; could have same key, but still not be patchable.
-                                   (if (patchable? old new)
-                                     (patch (append res (resurrect old))
-                                            old new)
-                                     (append res (create new)))
-                                   (append res (create new)))))
-                             (fn remove' [res old]
-                               (let [k (old-key old)]
-                                 (if (some? k)
-                                   (do
-                                     (r/key-reservoir-push! reservoir k old)
-                                     (remove res old))
-                                   (let [res (remove res old)]
-                                     (destroy! old true)
-                                     res))))
-                             (fn cut [res olds]
-                               ;; when cutting of remaining olds, we don't need to put it in the reservoir
-                               (let [res (reduce remove res (reverse olds))]
-                                 (doseq [o olds]
-                                   (destroy! o false))
-                                 res))
-                             patch
-                             olds
-                             news
-                             (fn patchable?' [old new]
-                               (and (patchable? old new)
-                                    ;; both with no keys is ok too
-                                    (= (old-key old) (new-key new)))))]
-    ;; what remains, is already removed, by maybe it needs some finalization:
-    (doseq [o (r/key-reservoir-seq reservoir)]
-      (destroy! o false))
-    res))
 
