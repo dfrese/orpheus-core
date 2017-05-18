@@ -29,13 +29,6 @@
    (types/with-context-update element
      (f/partial update (f/partial update-dispatcher [f args])))))
 
-(defn ^:no-doc create-js-event-handler [h dispatch!]
-  (comp (if dispatch!
-          (fn [e] (when (some? e)
-                    (dispatch! e)))
-          (constantly nil))
-        h))
-
 (def ^{:doc "Conveniently creates a virtual dom element of the given type,
   where `arg0` may be a property map, and all following arguments are
   used as child nodes."

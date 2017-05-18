@@ -6,6 +6,7 @@
             dfrese.orpheus.patch.util-test
             dfrese.orpheus.patch.base-test
             dfrese.orpheus.patch.lifting-test
+            dfrese.orpheus.types.element-test
             ))
 
 (doo-tests 'dfrese.orpheus.core-test
@@ -14,5 +15,6 @@
            'dfrese.orpheus.patch.util-test
            'dfrese.orpheus.patch.base-test
            'dfrese.orpheus.patch.lifting-test
+           'dfrese.orpheus.types.element-test
            )
 

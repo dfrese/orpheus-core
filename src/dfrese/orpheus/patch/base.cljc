@@ -2,14 +2,13 @@
   "Functions to apply a virtual dom to a real dom."
   (:require [dfrese.orpheus.core :as core]
             [dfrese.orpheus.types.element :as element]
+            dfrese.orpheus.html dfrese.orpheus.math dfrese.orpheus.svg ;; make sure multi-methods are loaded
             [dfrese.orpheus.types.indirection :as indirection]
             [dfrese.orpheus.types.foreign :as foreign]
             [dfrese.orpheus.types :as types]
             [dfrese.orpheus.patch.util :as util]
             [dfrese.orpheus.patch.indices :as i]
             [dfrese.edomus.core :as dom]
-            [dfrese.edomus.event :as dom-event]
-            [clojure.set :as set]
             [clojure.string :as str]))
 
 (declare patch-children!)
@@ -18,106 +17,23 @@
 
 ;; properties
 
-(def ^:no-doc event-type-re #"(?i)on(.*)")
-(def ^:no-doc event-type-capture-re #"(?i)on(.*)capture")
-
-(defn ^:no-doc event-type-name? [s]
-  (if-let [[_ name] (re-matches event-type-re s)]
-    name
-    nil))
-
-(defn ^:no-doc event-type? [s]
-  (if (and (> (count s) 2) ;; optimze a little with a quick preliminary test.
-           (= "on" (subs s 0 2)))
-    (if-let [[_ name] (re-matches event-type-capture-re s)]
-      (dom-event/event-type name true)
-      (if-let [name (event-type-name? s)]
-        (dom-event/event-type name false)
-        nil))
-    nil))
-
-(defn ^:no-doc set-simple-property! [state element name value options]
-  (if-let [etype (and (or (nil? value) ;; nil for removal :-/ TODO: look at old-v if it's an handler instead?
-                          (ifn? value))
-                      (event-type? name))]
-    (do
-      ;; set event handlers as a side effect, unfortunately; but the
-      ;; properties 'onclick' etc., cannot be called properly, for
-      ;; custom event triggering (at least I did not find out). Only
-      ;; the 'addEventListener' handlers can be called properly via
-      ;; dispatchEvent - so we map them here.
-      (if (nil? value)
-        (dom-event/unset-event-handler! element etype)
-        (let [f (core/create-js-event-handler value (:dispatch! options))]
-          (dom-event/set-event-handler! element etype f)))
-      nil)
-    ;; any other prop
-    (dom/set-property! element name value))
-  state)
-
-(defn ^:no-doc patch-style! [state element old-v new-v]
-  (util/patch-map-simple nil old-v new-v
-                         #(dom/remove-style! element %2)
-                         #(dom/set-style! element %2 %3))
-  state)
-
-(defn ^:no-doc init-style! [state element v]
-  (reduce-kv #(dom/set-style! element %2 %3)
-             nil
-             v)
-  state)
-
-(defn- set!? [v]
-  (if (set? v) v (set v)))
-
-(defn ^:no-doc patch-classes! [state element old-v new-v]
-  (let [o (set!? old-v) ;; should be sets already for optimal performance
-        n (set!? new-v)]
-    (doseq [c (set/difference o n)]
-      (dom/remove-class! element c))
-    (doseq [c (set/difference n o)]
-      (dom/add-class! element c)))
-  state)
-
-(defn ^:no-doc init-classes! [state element v]
-  (dom/set-classes! element v)
-  state)
-
-(defn ^:no-doc patch-attributes! [state element old-v new-v]
-  (util/patch-map-simple nil old-v new-v
-                         #(dom/remove-attribute! element %2)
-                         #(dom/set-attribute! element %2 %3))
-  state)
-
-(defn ^:no-doc init-attributes! [state element v]
-  (reduce-kv #(dom/set-attribute! element %2 %3)
-             nil
-             v)
-  state)
-
 (defn ^:no-doc patch-property! [state element n old-v new-v document options]
   (if (identical? old-v new-v) ;; doing a = is probably not worth it
     state
     (let [n (name n)]
-      ;; TODO: make this extensible; e.g. :points of svg polyline elements. (so per element type?)
       (case n
         "childNodes" (patch-children! state element old-v new-v document options)
-        "style" (patch-style! state element old-v new-v)
-        "attributes" (patch-attributes! state element old-v new-v)
-        "classList" (patch-classes! state element old-v new-v)
-        (if (not= old-v new-v) ;; need to because of IConvertible
-          (set-simple-property! state element n new-v options)
-          state)))))
+        (do (when (not= old-v new-v)
+              (element/patch-property! element n old-v new-v options))
+            state)))))
 
 (defn ^:no-doc init-property! [state element n value document options]
   ;; Note: value can always be nil; meaning to remove the property 'as much as possible'.
   (let [n (name n)]
     (case n
       "childNodes" (init-children! state element value document options)
-      "style" (init-style! state element value)
-      "attributes" (init-attributes! state element value)
-      "classList" (init-classes! state element (set value))
-      (set-simple-property! state element n value options))))
+      (do (element/init-property! element n value options)
+          state))))
 
 (defn ^:no-doc remove-property! [state element n]
   ;; to actively remove a property that was set before (in constrast to leaving it totally unchanged):

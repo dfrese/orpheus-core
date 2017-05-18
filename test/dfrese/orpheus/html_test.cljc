@@ -1,25 +1,26 @@
 (ns dfrese.orpheus.html-test
   (:require #?(:cljs [cljs.test :refer-macros [deftest is testing]])
             #?(:clj [clojure.test :refer [deftest is testing]])
-            [dfrese.orpheus.core :as core]
+            [dfrese.orpheus.types :as types]
+            [dfrese.orpheus.types.element :as element]
             [dfrese.orpheus.html :as html]))
 
 (deftest html-test
-  (is (= (core/element-type html/html-ns "div")
-         (core/ve-type (html/div {} "foo"))))
-  (is (= (core/element-type html/html-ns "div")
-         (core/ve-type (html/div "foo"))))
-  (is (= (core/element-type html/html-ns "div")
-         (core/ve-type (html/div))))
+  (is (= (element/element-type html/html-ns "div")
+         (types/ve-type (html/div {} "foo"))))
+  (is (= (element/element-type html/html-ns "div")
+         (types/ve-type (html/div "foo"))))
+  (is (= (element/element-type html/html-ns "div")
+         (types/ve-type (html/div))))
   
   (is (= {"childNodes" ["foo"]}
-         (core/ve-props (html/div {} "foo"))))
+         (types/ve-props (html/div {} "foo"))))
   (is (= {"childNodes" ["foo"]}
-         (core/ve-props (html/div "foo"))))
+         (types/ve-props (html/div "foo"))))
   (is (= {}
-         (core/ve-props (html/div {}))))
+         (types/ve-props (html/div {}))))
   (is (= {}
-         (core/ve-props (html/div))))
+         (types/ve-props (html/div))))
   
   (is (= (html/div {"bar" 42} "foo")
          (html/div {"bar" 42} "foo"))))

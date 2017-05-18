@@ -7,3 +7,5 @@
 
 (deftag svg svg-ns)
 ;; see http://www.w3schools.com/graphics/svg_intro.asp
+
+;; TODO: extend property patching; e.g. :points of svg polyline elements. (so per element type?)

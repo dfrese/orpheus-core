@@ -5,7 +5,8 @@
             #?@(:cljs [[cljs.test :refer-macros [deftest is testing]]])
             #?@(:clj [[clojure.test :refer [deftest is testing]]])
             [dfrese.orpheus.html :as html]
-            [dfrese.orpheus.core :as core :include-macros true]))
+            [dfrese.orpheus.core :as core :include-macros true]
+            [dfrese.orpheus.types :as types]))
 
 (defn patch! [state node props & [options]]
   (patch/patch! state node props options)
@@ -122,9 +123,9 @@
        ;; basic
        (let [state (patch! state
                            node
-                           {:childNodes [(core/with-context
+                           {:childNodes [(types/with-context-update
                                            (html/div {:onClick (constantly :test)})
-                                           {:dispatch! (fn [x] (reset! ev x))})]})]
+                                           (constantly {:dispatch! (fn [x] (reset! ev x))}))]})]
          (.dispatchEvent (.-firstChild node)
                          (new js/Event "click"))
          (is (= @ev :test))
@@ -132,9 +133,9 @@
          ;; changing context
          (let [state (patch! state
                              node
-                             {:childNodes [(core/with-context
+                             {:childNodes [(types/with-context-update
                                              (html/div {:onClick (constantly :test)})
-                                             {:dispatch! (fn [x] (reset! ev :foobar))})]})]
+                                             (constantly {:dispatch! (fn [x] (reset! ev :foobar))}))]})]
            (.dispatchEvent (.-firstChild node)
                            (new js/Event "click"))
            (is (= @ev :foobar))
