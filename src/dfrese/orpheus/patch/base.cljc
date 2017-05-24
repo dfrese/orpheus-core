@@ -200,6 +200,10 @@
     ;; total state is the vector of the child states:
     (mapv first res)))
 
+(defn- ^:no-doc vdom-key [vdom]
+  (when (types/velement? vdom)
+    (types/ve-key vdom)))
+
 (defn ^:no-doc similar-vdom?
   "Aka 'updateable' element"
   [vdom1 vdom2]
@@ -208,7 +212,11 @@
     
     (types/velement? vdom1)
     (and (types/velement? vdom2)
-         (identical? (types/ve-type vdom1) (types/ve-type vdom2)))
+         (identical? (types/ve-type vdom1) (types/ve-type vdom2))
+         ;; this is to help fold-diff-patch-v1, so that keyed elements
+         ;; are not 'stolen' by a similar element before we get to it
+         ;; walking though the children:
+         (= (types/ve-key vdom1) (types/ve-key vdom2)))
 
     (types/with-context-update? vdom1)
     (and (types/with-context-update? vdom2)
@@ -232,10 +240,6 @@
              (dotimes [i n]
                (aset r i (dom/get-child element i)))
              r)))
-
-(defn- ^:no-doc vdom-key [vdom]
-  (when (types/velement? vdom)
-    (types/ve-key vdom)))
 
 (defn ^:no-doc patch-children-v1 [state element old-vdoms new-vdoms document options]
   (assert (vector? state))
@@ -271,10 +275,8 @@
                              new-vdoms
                              (fn patchable? [idx new]
                                ;; Only patch, if keys are equal (or both have none), and types are patchable.
-                               ;; TODO: integrate key-check with similar-vdom? for optimization.
                                (let [old (aget olds idx)]
-                                 (and (= (vdom-key old) (vdom-key new))
-                                      (similar-vdom? old new))))
+                                 (similar-vdom? old new)))
                              (fn precious? [idx]
                                ;; try not to remove, if keyed (TODO or focused!?)
                                (let [old (aget olds idx)]
