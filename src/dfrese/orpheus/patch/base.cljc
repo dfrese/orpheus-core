@@ -2,7 +2,7 @@
   "Functions to apply a virtual dom to a real dom."
   (:require [dfrese.orpheus.core :as core]
             [dfrese.orpheus.types.element :as element]
-            dfrese.orpheus.html dfrese.orpheus.math dfrese.orpheus.svg ;; make sure multi-methods are loaded
+            dfrese.orpheus.html dfrese.orpheus.mathml dfrese.orpheus.svg ;; make sure multi-methods are loaded
             [dfrese.orpheus.types.indirection :as indirection]
             [dfrese.orpheus.types.foreign :as foreign]
             [dfrese.orpheus.types :as types]

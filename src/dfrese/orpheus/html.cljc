@@ -1,10 +1,11 @@
 (ns dfrese.orpheus.html
+  "Functions to create virtual dom elements from the HTML 5 namespace."
   (:require [dfrese.orpheus.core :as core]
             #?(:cljs [dfrese.orpheus.types.element :refer-macros (deftag)])
             #?(:clj [dfrese.orpheus.types.element :refer (deftag)]))
   (:refer-clojure :exclude [time]))
 
-(def ^:no-doc html-ns "http://www.w3.org/1999/xhtml")
+(def ^{:doc "The HTML 5 namespace."} html-ns "http://www.w3.org/1999/xhtml")
 
 (deftag h1 html-ns)
 (deftag h2 html-ns)

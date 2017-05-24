@@ -36,5 +36,5 @@
 
   :codox {:language :clojurescript
           :metadata {:doc/format :markdown}
-          :namespaces [#"^dfrese.orpheus.(?!patch\.)"]}
+          :namespaces [#"^dfrese.orpheus.(?!patch\.|types$)"]}
   )

@@ -1,4 +1,5 @@
-(ns dfrese.orpheus.types)
+(ns dfrese.orpheus.types
+  "Basic types and functions for virtual dom elements.")
 
 ;; The vdom tree may consist of: velements, with-context-update and strings.
 ;; velements have a type, which is one of: element (dom), foreign-type, indirection-type

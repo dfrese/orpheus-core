@@ -1,4 +1,7 @@
 (ns dfrese.orpheus.types.element
+  "Functions for virtual dom elements representing the basic dom elements.
+   The functions in this package are intented for library developers,
+  and not needed for basic usage of Orpheus."
   (:require [dfrese.orpheus.types :as core]
             [dfrese.edomus.core :as dom]
             [dfrese.edomus.event :as dom-event]
@@ -67,7 +70,7 @@
             (applyTo [this args] (apply h this args))]))
 
 (defn element-type?
-  "Return if v is an ElementType."
+  "Return if v is a basic element type."
   [v]
   (instance? ElementType v))
 
@@ -240,3 +243,5 @@
 (defmethod patch-global-property! "attributes"
   [element property-name old-value new-value options]
   (patch-attributes! element old-value new-value))
+
+;; TODO: dataset ? datetime ?  img:sizes,srcset ?

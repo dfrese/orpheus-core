@@ -1,4 +1,7 @@
-(ns dfrese.orpheus.types.foreign)
+(ns dfrese.orpheus.types.foreign
+  "Types and functions for virtual dom elements that bridge to other dom libraries.
+   The functions in this package are intented for library developers,
+  and not needed for basic usage of Orpheus.")
 
 ;; A foreign type could be something like a react component, which can
 ;; be integrated into the dom, but has special rules for construction

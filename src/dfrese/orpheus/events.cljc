@@ -4,24 +4,27 @@
 
 ;; TODO: keys, mouse positions/clicks?
 
-;; TODO: add js/Event to edomus
+;; TODO: add more of this to edomus
+
 (defn target-value
-  "Return the `target.value` of an event"
-  [e]
-  (.-value (.-target e)))
+  "Returns `target.value` of the event."
+  [event]
+  (.-value (.-target event)))
 
 (defn target-checked
-  "Return the `target.checked` of an event."
-  [e]
-  (.-checked (.-target e)))
+  "Returns `target.checked` of the event."
+  [event]
+  (.-checked (.-target event)))
 
-#?(:cljs
-   (defn prevent-default! [^js/Event e]
-     (.preventDefault e)
-     e))
+(defn prevent-default!
+  "Calls the `preventDefault` method of the event, and returns it."
+  [event]
+  (.preventDefault event)
+  event)
 
-#?(:cljs
-   (defn stop-propagation! [^js/Event e]
-     (.stopPropagation e)
-     e))
+(defn stop-propagation!
+  "Calls the `stopPropagation` method of the event, and returns it."
+  [event]
+  (.stopPropagation event)
+  event)
 
